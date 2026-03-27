@@ -1,0 +1,211 @@
+Station,Line,Latitude,Longitude
+Adarsh Nagar,Yellow,28.7144,77.1673
+Ghitorni,Yellow,28.4938,77.1492
+Jor Bagh,Yellow,28.5882,77.2165
+New Delhi,Yellow,28.6436,77.2217
+Jahangirpuri,Yellow,28.7260,77.1627
+INA,Yellow,28.5744,77.2102
+Samaypur Badli,Yellow,28.7446,77.1383
+Saket,Yellow,28.5244,77.2137
+IFFCO Chowk,Yellow,28.4723,77.0724
+Rohini Sector 18,Yellow,28.7383,77.1398
+HUDA City Centre,Yellow,28.4593,77.0727
+Hauz Khas,Yellow,28.5443,77.2067
+Patel Chowk,Yellow,28.6230,77.2140
+Haiderpur,Yellow,28.7301,77.1494
+Rajiv Chowk,Yellow,28.6328,77.2197
+Guru Dronacharya,Yellow,28.4820,77.1023
+GTB Nagar,Yellow,28.6981,77.2064
+Green Park,Yellow,28.5586,77.2067
+Sikandarpur,Yellow,28.4813,77.0930
+Civil Lines,Yellow,28.6769,77.2250
+Model Town,Yellow,28.7027,77.1940
+Chhatarpur,Yellow,28.5067,77.1750
+Chawri Bazar,Yellow,28.6502,77.2295
+Chandni Chowk,Yellow,28.6605,77.2298
+Central Secretariat,Yellow,28.6159,77.2123
+AIIMS,Yellow,28.5669,77.2078
+Vishwa Vidyalaya,Yellow,28.6950,77.2147
+Vidhan Sabha,Yellow,28.6863,77.2217
+Sultanpur,Yellow,28.4617,76.8701
+Arjan Garh,Yellow,28.4807,77.1258
+Lok Kalyan Marg,Yellow,28.5984,77.2030
+Malviya Nagar,Yellow,28.5339,77.2124
+MG Road,Yellow,28.4795,77.0805
+Udyog Bhawan,Yellow,28.6105,77.2131
+Azadpur,Yellow,28.7077,77.1755
+Kashmere Gate,Yellow,28.6517,77.2219
+Kashmere Gate,Red,28.6517,77.2219
+Kashmere Gate,Violet,28.6517,77.2219
+Major Mohit Sharma,Red,28.6776,77.3581
+Hindon,Red,28.8790,77.4155
+Mansarovar Park,Red,28.6757,77.3001
+Kanhaiya Nagar,Red,28.6801,77.1648
+Inderlok,Red,28.6517,77.2219
+Inderlok,Green,28.6517,77.2219
+Welcome,Red,28.6517,77.2219
+Netaji Subhash Place,Red,28.6961,77.1526
+Mohan Nagar,Red,28.6063,77.1061
+Jhilmil,Red,28.6757,77.3125
+Keshav Puram,Red,28.6889,77.1617
+Pitam Pura,Red,28.7033,77.1322
+Pratap Nagar,Red,28.6665,77.1993
+Tis Hazari,Red,28.6671,77.2166
+Arthala,Red,28.6770,77.3919
+Pul Bangash,Red,28.6664,77.2075
+Raj Bagh,Red,28.6409,77.2095
+Shaheed Sthal,Red,28.6706,77.4156
+Dilshad Garden,Red,28.6759,77.3214
+Kohat Enclave,Red,28.6980,77.1405
+Shastri Nagar,Red,28.6700,77.1820
+Shahdara,Red,28.6734,77.2897
+Rithala,Red,28.7208,77.1072
+Rohini East,Red,28.7076,77.1260
+Rohini West,Red,28.7150,77.1154
+Seelampur,Red,28.6698,77.2668
+Shastri Park,Red,28.6683,77.2504
+Shyam Park,Red,28.6988,77.2685
+Preet Vihar,Blue,28.6415,77.2954
+Subhash Nagar,Blue,28.6418,77.1088
+Tilak Nagar,Blue,28.6365,77.0965
+Tagore Garden,Blue,28.6438,77.1128
+Mayur Vihar Extension,Blue,28.5942,77.2946
+Mayur Vihar -I,Blue,28.6031,77.2926
+Mandi House,Blue,28.6256,77.2342
+Uttam Nagar East,Blue,28.6248,77.0653
+Uttam Nagar West,Blue,28.6218,77.0557
+Vaishali,Blue,28.6441,77.0684
+Supreme Court,Blue,28.6223,77.2394
+Moti Nagar,Blue,28.6579,77.1424
+Nirman Vihar,Blue,28.6365,77.2868
+New Ashok Nagar,Blue,28.5891,77.3015
+Patel Nagar,Blue,28.6456,77.1687
+Rajendra Place,Blue,28.6425,77.1783
+Rajouri Garden,Blue,28.6422,77.1161
+Ramakrishna Ashram Marg,Blue,28.6392,77.2086
+Ramesh Nagar,Blue,28.6527,77.1316
+Noida Sector 62,Blue,28.4809,77.0849
+Shadipur,Blue,28.6516,77.1583
+Nawada,Blue,28.6203,77.0451
+Laxmi Nagar,Blue,28.6306,77.2776
+Yamuna Bank,Blue,28.6233,77.2679
+Indraprastha,Blue,28.6206,77.2496
+Janakpuri West,Blue,28.6290,77.0779
+Janakpuri West,Magenta,28.6290,77.0779
+Dwarka Sector 12,Blue,28.5922,77.0407
+Dwarka Sector 11,Blue,28.5864,77.0494
+Dwarka Sector 10,Blue,28.5811,77.0575
+Janakpuri East,Blue,28.6330,77.0868
+Dwarka Sector 9,Blue,28.5743,77.0653
+Dwarka Sector 8,Blue,28.5656,77.0670
+Dwarka Sector 14,Blue,28.6023,77.0260
+Dwarka Sector 21,Blue,28.5518,77.0586
+Dwarka Sector 21,Airport Express,28.5518,77.0586
+Dwarka Mor,Blue,28.6193,77.0333
+Dwarka,Blue,28.5772,77.0443
+Jhandewalan,Blue,28.6443,77.1999
+Barakhambha Road,Blue,28.6298,77.2250
+Anand Vihar ISBT,Blue,28.6468,77.3180
+Dwarka Sector 13,Blue,28.5970,77.0335
+Karol Bagh,Blue,28.6442,77.1891
+Karkarduma,Blue,28.6492,77.3062
+Kirti Nagar,Blue,28.6533,77.1418
+Kirti Nagar,Green,28.6533,77.1418
+Akshardham,Blue,28.6178,77.2795
+Botanical Garden,Blue,28.5639,77.3343
+Botanical Garden,Magenta,28.5639,77.3343
+Kaushambi,Blue,28.6453,77.3243
+Gokulpuri,Violet,28.7025,77.2861
+Punjabi Bagh West,Pink,28.6703,77.1421
+ESI Hospital,Pink,28.6581,77.1273
+Hazrat Nizamuddin,Pink,28.5887,77.2572
+Sir Vishweshwaraiah Moti Bagh,Pink,28.5785,77.1757
+Jaffrabad,Pink,28.6827,77.2748
+East Azad Nagar,Pink,28.6647,77.2849
+East Vinod Nagar – Mayur Vihar-II,Pink,28.6200,77.3054
+IP Extension,Pink,28.6289,77.3102
+Shakurpur,Pink,28.6858,77.1496
+Bhikaji Cama Place,Pink,28.5679,77.1870
+Shalimar Bagh,Pink,28.7175,77.1509
+Naraina Vihar,Pink,28.6273,77.1403
+Karkarduma Court,Pink,28.6536,77.2958
+Krishna Nagar,Pink,28.6578,77.2902
+Sarojini Nagar,Pink,28.5742,77.1954
+Shiv Vihar,Pink,28.6175,77.0354
+Ashram,Pink,28.5724,77.2586
+Durgabai Deshmukh South Campus,Pink,28.5894,77.1691
+Delhi Cantonment,Pink,28.5938,77.1350
+Vinobapuri,Pink,28.5670,77.2492
+Mayur Vihar Pocket I,Pink,28.6059,77.2987
+Trilokpuri Sanjay Lake,Pink,28.6135,77.3089
+Mayapuri,Pink,28.6372,77.1297
+Maujpur-Babarpur,Pink,28.6920,77.2796
+Mandawali – West Vinod Nagar,Pink,28.6250,77.3045
+Majlis Park,Pink,28.7244,77.1820
+Chirag Delhi,Magenta,28.5381,77.2281
+Shankar Vihar,Magenta,28.5574,77.1397
+Sadar Bazaar Cantonment,Magenta,28.5772,77.1112
+Dashrath Puri,Magenta,28.6019,77.0824
+Dabri Mor-Janakpuri South,Magenta,28.6158,77.0852
+R.K.Puram,Magenta,28.5514,77.1847
+Sukhdev Vihar,Magenta,28.5597,77.2749
+Okhla Bird Sanctuary,Magenta,28.5529,77.3216
+Greater Kailash,Magenta,28.5419,77.2385
+Kalindi Kunj,Magenta,28.5452,77.3060
+Vasant Vihar,Magenta,28.5607,77.1608
+Munirka,Magenta,28.5549,77.1711
+Jasola Vihar Shaheen Bagh,Magenta,28.5458,77.2967
+Jamia Millia Islamia,Magenta,28.5585,77.2812
+Okhla NSIC,Magenta,28.5545,77.2648
+Okhla Vihar,Magenta,28.5613,77.2919
+Nehru Enclave,Magenta,28.5461,77.2515
+Palam,Magenta,28.5919,77.0828
+Panchsheel Park,Magenta,28.5434,77.2141
+Qutub Minar,Yellow,28.5244,77.1855
+Madipur,Green,28.6765,77.1194
+Brigadier Hoshiyar Singh,Green,28.6975,76.9192
+Ghevra,Green,28.6852,76.9962
+Ashok Park Main,Green,28.6716,77.1553
+Mundka,Green,28.6824,77.0306
+Mundka Industrial Area,Green,28.6834,77.0171
+Satguru Ramsingh Marg,Green,28.6619,77.1575
+Paschim Vihar West,Green,28.6787,77.1022
+Shivaji Park,Green,28.6750,77.1305
+Rajdhani Park,Green,28.6823,77.0439
+Udyog Nagar,Green,28.6811,77.0808
+Nangloi Railway station,Green,28.6822,77.0562
+Paschim Vihar East,Green,28.6774,77.1123
+Bahadurgarh City,Green,28.6908,76.9355
+Peera Garhi,Green,28.6798,77.0927
+Pandit Shree Ram Sharma,Green,28.6893,76.9512
+Tikri Kalan,Green,28.6869,76.9772
+Tikri Border,Green,28.6880,76.9641
+Nangloi,Green,28.6824,77.0647
+Punjabi Bagh,Green,28.6689,77.1325
+Badarpur Border,Violet,28.4905,77.3040
+Tughlakabad Station,Violet,28.5024,77.2992
+Bata Chowk,Violet,28.3858,77.3135
+Lajpat Nagar,Violet,28.5706,77.2365
+Jama Masjid,Violet,28.6500,77.2377
+Khan Market,Violet,28.6001,77.2265
+Kalkaji Mandir,Violet,28.5498,77.2607
+Kalkaji Mandir,Magenta,28.5498,77.2607
+Kailash Colony,Violet,28.5531,77.2430
+Mohan Estate,Violet,28.5196,77.2946
+Moolchand,Violet,28.5644,77.2343
+Jawaharlal Nehru Stadium,Violet,28.5834,77.2335
+Nehru Place,Violet,28.5493,77.2530
+Jasola Apollo,Violet,28.5384,77.2830
+Janpath,Violet,28.6089,77.2182
+Jangpura,Violet,28.5825,77.2415
+Delhi Gate,Violet,28.6392,77.2408
+ITO,Violet,28.6305,77.2414
+Central Secretariat,Violet,28.6159,77.2123
+Shivaji Stadium,Airport Express,28.6315,77.2161
+Delhi Aerocity,Airport Express,28.5488,77.1208
+IGI Airport T3,Airport Express,28.5549,77.0847
+Dhaula Kuan,Airport Express,28.5919,77.1617
+New Delhi Railway Station,Airport Express,28.6436,77.2217
+Nangli,Grey,28.6173,77.0104
+Najafgarh,Grey,28.6123,76.9824
+Dhansa Bus Stand,Grey,28.6123,76.9824

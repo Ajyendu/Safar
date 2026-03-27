@@ -1,0 +1,1440 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      SUPERMAX - THE NEW TOWN | Sector 33, Sonipat | 3D Photorealistic Model
+    </title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: "Segoe UI", "Poppins", sans-serif;
+      }
+      #info-panel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: linear-gradient(
+          135deg,
+          rgba(0, 40, 80, 0.95) 0%,
+          rgba(0, 20, 40, 0.95) 100%
+        );
+        padding: 20px 30px;
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+        z-index: 100;
+        border-left: 6px solid #4caf50;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        max-width: 350px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      #info-panel h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: #fff;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+      }
+      #info-panel h1 span {
+        color: #4caf50;
+        font-weight: 300;
+      }
+      #info-panel .location {
+        margin: 8px 0 15px;
+        font-size: 16px;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      #info-panel .location::before {
+        content: "📍";
+        margin-right: 5px;
+      }
+      #info-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 15px;
+      }
+      .stat-item {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 8px 12px;
+        border-radius: 8px;
+        border-left: 3px solid #4caf50;
+      }
+      .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        opacity: 0.7;
+        letter-spacing: 0.5px;
+      }
+      .stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #4caf50;
+      }
+      #coordinates {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 8px 16px;
+        border-radius: 30px;
+        backdrop-filter: blur(5px);
+        z-index: 100;
+        font-size: 13px;
+        font-family: monospace;
+        border: 1px solid #4caf50;
+      }
+      #controls {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 12px 20px;
+        border-radius: 40px;
+        backdrop-filter: blur(10px);
+        z-index: 100;
+        display: flex;
+        gap: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+      }
+      .control-btn {
+        background: transparent;
+        border: 1px solid #4caf50;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 30px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s;
+        letter-spacing: 0.5px;
+      }
+      .control-btn:hover {
+        background: #4caf50;
+        color: #000;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+      }
+      #loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        background: rgba(0, 40, 60, 0.95);
+        padding: 30px 60px;
+        border-radius: 20px;
+        z-index: 1000;
+        font-size: 20px;
+        border: 2px solid #4caf50;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+        text-align: center;
+        backdrop-filter: blur(10px);
+      }
+      #loading .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 255, 255, 0.2);
+        border-top: 5px solid #4caf50;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      #compass {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 80px;
+        height: 80px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        border: 3px solid white;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        backdrop-filter: blur(5px);
+      }
+      #compass::after {
+        content: "N";
+        position: absolute;
+        top: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ff4444;
+        font-weight: bold;
+      }
+      .tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 1000;
+        border: 1px solid #4caf50;
+      }
+      /* Embed mode: only the 3D model visible (no panels, controls, labels) */
+      body.embed-mode #info-panel,
+      body.embed-mode #coordinates,
+      body.embed-mode #controls,
+      body.embed-mode #compass,
+      body.embed-mode #loading,
+      body.embed-mode .tooltip {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var inIframe = window.self !== window.top;
+        var embedParam = new URLSearchParams(window.location.search).get("embed");
+        if (inIframe || embedParam === "1") document.body.classList.add("embed-mode");
+      })();
+    </script>
+    <div id="info-panel">
+      <h1>SUPERMAX <span>· THE NEW TOWN</span></h1>
+      <div class="location">
+        Stadium Road, Village Rathdhana, Sector 33, Sonipat, Haryana
+      </div>
+      <div
+        style="
+          height: 2px;
+          background: linear-gradient(90deg, #4caf50, transparent);
+          margin: 15px 0;
+        "
+      ></div>
+      <div id="info-stats">
+        <div class="stat-item">
+          <div class="stat-label">Towers</div>
+          <div class="stat-value">8 (A-H)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Total Units</div>
+          <div class="stat-value">743</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Floors</div>
+          <div class="stat-value">12 Each</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Area</div>
+          <div class="stat-value">5 Acres</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Type A1/A2</div>
+          <div class="stat-value">562 sq.ft</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Type A3</div>
+          <div class="stat-value">657 sq.ft</div>
+        </div>
+      </div>
+      <div
+        style="
+          margin-top: 15px;
+          font-size: 12px;
+          opacity: 0.6;
+          display: flex;
+          gap: 15px;
+        "
+      >
+        <span>🏊 Pool</span> <span>🏋️ Gym</span> <span>🌳 4,600m² Parks</span>
+        <span>🏛️ Clubhouse</span> <span>🛕 Temple</span>
+      </div>
+    </div>
+
+    <div id="coordinates">
+      📍 28.9508351, 77.0681939 | RERA: HRERA-PKL-PROJ-506-2019
+    </div>
+
+    <div id="controls">
+      <button class="control-btn" id="dayBtn">☀️ Day</button>
+      <button class="control-btn" id="eveningBtn">🌆 Evening</button>
+      <button class="control-btn" id="nightBtn">🌙 Night</button>
+      <button class="control-btn" id="resetView">🔄 Reset</button>
+      <button class="control-btn" id="toggleLabels">🏷️ Hide Labels</button>
+    </div>
+
+    <div id="compass"></div>
+    <div id="loading">
+      <div class="spinner"></div>
+      Generating SUPERMAX - THE NEW TOWN<br />
+      <span style="font-size: 14px; opacity: 0.8"
+        >Sector 33, Sonipat | 8 Towers | 743 Apartments</span
+      >
+    </div>
+
+    <!-- Import Three.js -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import {
+        CSS2DRenderer,
+        CSS2DObject,
+      } from "three/addons/renderers/CSS2DRenderer.js";
+
+      // --- Initialize Scene ---
+      const scene = new THREE.Scene();
+
+      // Realistic sky gradient based on Sonipat latitude (28°N)
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 512;
+      const ctx = canvas.getContext("2d");
+      const gradient = ctx.createLinearGradient(0, 0, 0, 512);
+      gradient.addColorStop(0, "#0a2a4a"); // Deep blue top
+      gradient.addColorStop(0.3, "#3a6a9a"); // Mid blue
+      gradient.addColorStop(0.7, "#c0d0e0"); // Horizon
+      gradient.addColorStop(1, "#e8e0c0"); // Ground haze
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1, 512);
+      const skyTexture = new THREE.CanvasTexture(canvas);
+      scene.background = skyTexture;
+
+      // --- Camera (Bird's eye view) ---
+      const camera = new THREE.PerspectiveCamera(
+        50,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000,
+      );
+      camera.position.set(80, 60, 120);
+      camera.lookAt(45, 15, 45);
+
+      // --- Renderers ---
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: "high-performance",
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      document.body.appendChild(renderer.domElement);
+
+      // CSS2 Renderer for labels
+      const labelRenderer = new CSS2DRenderer();
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.domElement.style.position = "absolute";
+      labelRenderer.domElement.style.top = "0px";
+      labelRenderer.domElement.style.left = "0px";
+      labelRenderer.domElement.style.pointerEvents = "none";
+      document.body.appendChild(labelRenderer.domElement);
+
+      // --- Controls ---
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2.2;
+      controls.minDistance = 40;
+      controls.maxDistance = 250;
+      controls.target.set(45, 15, 45);
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.5;
+
+      // --- Lighting System ---
+
+      // Ambient light
+      const ambientLight = new THREE.AmbientLight(0x404060);
+      scene.add(ambientLight);
+
+      // Sun (main directional light)
+      const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.8);
+      sunLight.position.set(60, 100, 60);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 4096;
+      sunLight.shadow.mapSize.height = 4096;
+      sunLight.shadow.camera.near = 10;
+      sunLight.shadow.camera.far = 200;
+      sunLight.shadow.camera.left = -80;
+      sunLight.shadow.camera.right = 80;
+      sunLight.shadow.camera.top = 80;
+      sunLight.shadow.camera.bottom = -80;
+      sunLight.shadow.bias = -0.0005;
+      sunLight.shadow.normalBias = 0.02;
+      scene.add(sunLight);
+
+      // Fill light (cool)
+      const fillLight = new THREE.DirectionalLight(0x88aaff, 0.5);
+      fillLight.position.set(-40, 40, -40);
+      scene.add(fillLight);
+
+      // Back light
+      const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+      backLight.position.set(0, 30, -80);
+      scene.add(backLight);
+
+      // Ground plane with texture
+      const groundGeo = new THREE.CircleGeometry(200, 64);
+
+      // Create ground texture procedurally
+      const groundCanvas = document.createElement("canvas");
+      groundCanvas.width = 512;
+      groundCanvas.height = 512;
+      const groundCtx = groundCanvas.getContext("2d");
+      groundCtx.fillStyle = "#3a5a3a";
+      groundCtx.fillRect(0, 0, 512, 512);
+
+      // Add random grass patches
+      for (let i = 0; i < 5000; i++) {
+        groundCtx.fillStyle = `rgba(50,80,50,${Math.random() * 0.3})`;
+        groundCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      }
+
+      const groundTexture = new THREE.CanvasTexture(groundCanvas);
+      groundTexture.wrapS = THREE.RepeatWrapping;
+      groundTexture.wrapT = THREE.RepeatWrapping;
+      groundTexture.repeat.set(8, 8);
+
+      const groundMat = new THREE.MeshStandardMaterial({
+        map: groundTexture,
+        color: 0x4a6a4a,
+        roughness: 0.9,
+        metalness: 0.0,
+      });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = 0;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Add grid helper for reference (semi-transparent)
+      const gridHelper = new THREE.GridHelper(160, 32, 0x88aa88, 0x446644);
+      gridHelper.position.y = 0.02;
+      gridHelper.material.opacity = 0.3;
+      gridHelper.material.transparent = true;
+      scene.add(gridHelper);
+
+      // ===========================================
+      // ENHANCED: 2-LINE ARRANGEMENT WITH REALISTIC COLORS
+      // ===========================================
+
+      // Realistic building colors (beige/brown tones)
+      const towerColors = {
+        A: 0xe8d0b0, // Light Beige
+        B: 0xd0b090, // Medium Beige
+        C: 0xd0b090, // Medium Beige
+        D: 0xd0b090, // Medium Beige
+        E: 0xd0b090, // Medium Beige
+        F: 0xd0b090, // Medium Beige
+        G: 0xd0b090, // Medium Beige
+        H: 0xd0b090, // Medium Beige
+      };
+
+      // Accent colors for details
+      const accentColors = {
+        A: 0xb09070, // Darker Beige
+        B: 0xa08060, // Brown
+        C: 0xa08060,
+        D: 0xa08060,
+        E: 0xa08060,
+        F: 0xa08060,
+        G: 0xa08060,
+        H: 0xa08060,
+      };
+
+      // Tower configuration - 2 LINES with CENTRAL PLAYGROUND
+      // LINE 1 (FRONT): Towers A, B, C, D at z=20
+      // LINE 2 (BACK): Towers E, F, G, H at z=70
+      // CENTRAL PLAYGROUND at z=45
+
+      const towers = [
+        // FRONT ROW (LINE 1)
+        {
+          name: "A",
+          type: "A3",
+          units: 48,
+          floors: 12,
+          color: towerColors.A,
+          accent: accentColors.A,
+          posX: 20,
+          posZ: 20,
+          width: 18,
+          depth: 18,
+        },
+        {
+          name: "B",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.B,
+          accent: accentColors.B,
+          posX: 45,
+          posZ: 20,
+          width: 16,
+          depth: 16,
+        },
+        {
+          name: "C",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.C,
+          accent: accentColors.C,
+          posX: 70,
+          posZ: 20,
+          width: 16,
+          depth: 16,
+        },
+        {
+          name: "D",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.D,
+          accent: accentColors.D,
+          posX: 95,
+          posZ: 20,
+          width: 16,
+          depth: 16,
+        },
+
+        // BACK ROW (LINE 2)
+        {
+          name: "E",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.E,
+          accent: accentColors.E,
+          posX: 20,
+          posZ: 70,
+          width: 16,
+          depth: 16,
+        },
+        {
+          name: "F",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.F,
+          accent: accentColors.F,
+          posX: 45,
+          posZ: 70,
+          width: 16,
+          depth: 16,
+        },
+        {
+          name: "G",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.G,
+          accent: accentColors.G,
+          posX: 70,
+          posZ: 70,
+          width: 16,
+          depth: 16,
+        },
+        {
+          name: "H",
+          type: "A1/A2",
+          units: 99,
+          floors: 12,
+          color: towerColors.H,
+          accent: accentColors.H,
+          posX: 95,
+          posZ: 70,
+          width: 16,
+          depth: 16,
+        },
+      ];
+
+      // Function to create a realistic apartment tower with enhanced details
+      function createTower(spec) {
+        const group = new THREE.Group();
+
+        const height = spec.floors * 3.2; // 3.2m per floor
+        const width = spec.width;
+        const depth = spec.depth;
+
+        // ===========================================
+        // ENHANCED: Realistic texture with windows and balconies
+        // ===========================================
+        const textureCanvas = document.createElement("canvas");
+        textureCanvas.width = 512;
+        textureCanvas.height = 1024;
+        const tCtx = textureCanvas.getContext("2d");
+
+        // Base wall color (beige/cream)
+        const baseColor = spec.name === "A" ? "#F0E0C0" : "#E0D0B0";
+        tCtx.fillStyle = baseColor;
+        tCtx.fillRect(0, 0, 512, 1024);
+
+        // Add texture variation (subtle noise)
+        for (let i = 0; i < 5000; i++) {
+          const x = Math.random() * 512;
+          const y = Math.random() * 1024;
+          const shade = Math.random() * 20;
+          tCtx.fillStyle = `rgba(100,80,60,${Math.random() * 0.1})`;
+          tCtx.fillRect(x, y, 2, 2);
+        }
+
+        // Add horizontal bands (floor separators)
+        tCtx.strokeStyle = "#8a7a6a";
+        tCtx.lineWidth = 4;
+        for (let floor = 0; floor < spec.floors; floor++) {
+          const y = 80 + floor * 85;
+          tCtx.beginPath();
+          tCtx.moveTo(40, y);
+          tCtx.lineTo(472, y);
+          tCtx.stroke();
+        }
+
+        // Add windows with balconies
+        for (let floor = 0; floor < spec.floors; floor++) {
+          const yBase = 60 + floor * 85;
+
+          // Number of windows per floor (4 for A, 3 for others)
+          const windowCount = spec.name === "A" ? 5 : 4;
+          const startX = spec.name === "A" ? 60 : 80;
+          const spacing = spec.name === "A" ? 90 : 100;
+
+          for (let col = 0; col < windowCount; col++) {
+            const x = startX + col * spacing;
+
+            // Window glass
+            tCtx.fillStyle = "#2a3a4a";
+            tCtx.fillRect(x, yBase, 40, 60);
+
+            // Window frame
+            tCtx.strokeStyle = "#c0b0a0";
+            tCtx.lineWidth = 4;
+            tCtx.strokeRect(x, yBase, 40, 60);
+
+            // Window reflection
+            tCtx.fillStyle = "#4a6a8a";
+            tCtx.fillRect(x + 5, yBase + 5, 10, 15);
+            tCtx.fillRect(x + 25, yBase + 5, 10, 15);
+
+            // Balcony below window
+            tCtx.fillStyle = "#8a7a6a";
+            tCtx.fillRect(x - 5, yBase + 65, 50, 8);
+
+            // Balcony railing (simplified)
+            tCtx.strokeStyle = "#a09080";
+            tCtx.lineWidth = 2;
+            for (let r = 0; r < 3; r++) {
+              tCtx.beginPath();
+              tCtx.moveTo(x - 5 + r * 20, yBase + 55);
+              tCtx.lineTo(x - 5 + r * 20, yBase + 70);
+              tCtx.stroke();
+            }
+          }
+        }
+
+        // Add corner details
+        tCtx.fillStyle = "#8a7a6a";
+        tCtx.fillRect(0, 0, 20, 1024); // Left edge
+        tCtx.fillRect(492, 0, 20, 1024); // Right edge
+
+        const towerTexture = new THREE.CanvasTexture(textureCanvas);
+
+        // Main tower body with enhanced material
+        const towerGeo = new THREE.BoxGeometry(width, height, depth);
+        const towerMat = new THREE.MeshStandardMaterial({
+          map: towerTexture,
+          color: spec.color,
+          roughness: 0.7,
+          metalness: 0.0,
+          emissive: 0x000000,
+        });
+
+        const tower = new THREE.Mesh(towerGeo, towerMat);
+        tower.position.y = height / 2;
+        tower.castShadow = true;
+        tower.receiveShadow = true;
+        group.add(tower);
+
+        // ===========================================
+        // ENHANCED: Roof with architectural details
+        // ===========================================
+
+        // Main roof
+        const roofGeo = new THREE.BoxGeometry(width + 2, 0.8, depth + 2);
+        const roofMat = new THREE.MeshStandardMaterial({
+          color: 0x6a5a4a,
+          roughness: 0.8,
+        });
+        const roof = new THREE.Mesh(roofGeo, roofMat);
+        roof.position.y = height;
+        roof.castShadow = true;
+        roof.receiveShadow = true;
+        group.add(roof);
+
+        // Parapet wall around roof
+        const parapetMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a });
+
+        // Four sides of parapet
+        const parapetGeo = new THREE.BoxGeometry(width + 2.4, 0.6, 0.4);
+
+        // Front parapet
+        const frontParapet = new THREE.Mesh(parapetGeo, parapetMat);
+        frontParapet.position.set(0, height + 0.5, depth / 2 + 1);
+        frontParapet.castShadow = true;
+        frontParapet.receiveShadow = true;
+        group.add(frontParapet);
+
+        // Back parapet
+        const backParapet = new THREE.Mesh(parapetGeo, parapetMat);
+        backParapet.position.set(0, height + 0.5, -depth / 2 - 1);
+        backParapet.castShadow = true;
+        backParapet.receiveShadow = true;
+        group.add(backParapet);
+
+        // Side parapets
+        const sideParapetGeo = new THREE.BoxGeometry(0.4, 0.6, depth + 2.4);
+
+        const leftParapet = new THREE.Mesh(sideParapetGeo, parapetMat);
+        leftParapet.position.set(-width / 2 - 1, height + 0.5, 0);
+        leftParapet.castShadow = true;
+        leftParapet.receiveShadow = true;
+        group.add(leftParapet);
+
+        const rightParapet = new THREE.Mesh(sideParapetGeo, parapetMat);
+        rightParapet.position.set(width / 2 + 1, height + 0.5, 0);
+        rightParapet.castShadow = true;
+        rightParapet.receiveShadow = true;
+        group.add(rightParapet);
+
+        // Water tank on roof
+        const tankGeo = new THREE.CylinderGeometry(1.5, 1.5, 2.5, 8);
+        const tankMat = new THREE.MeshStandardMaterial({
+          color: 0xcccccc,
+          metalness: 0.3,
+          roughness: 0.5,
+        });
+        const tank = new THREE.Mesh(tankGeo, tankMat);
+        tank.position.set(3, height + 1.5, 3);
+        tank.castShadow = true;
+        tank.receiveShadow = true;
+        group.add(tank);
+
+        // AC units on roof
+        const acGeo = new THREE.BoxGeometry(1.2, 0.5, 2);
+        const acMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+
+        for (let i = -2; i <= 2; i += 2) {
+          const ac = new THREE.Mesh(acGeo, acMat);
+          ac.position.set(i, height + 0.5, -2);
+          ac.castShadow = true;
+          ac.receiveShadow = true;
+          group.add(ac);
+        }
+
+        // ===========================================
+        // ENHANCED: Base and podium
+        // ===========================================
+
+        // Main base
+        const baseGeo = new THREE.BoxGeometry(width + 3, 1.5, depth + 3);
+        const baseMat = new THREE.MeshStandardMaterial({
+          color: 0x8a7a6a,
+          roughness: 0.7,
+        });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.y = 0.75;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        group.add(base);
+
+        // Entrance canopy
+        const canopyGeo = new THREE.BoxGeometry(4, 0.3, 2);
+        const canopyMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
+        const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+        canopy.position.set(0, 3, depth / 2 + 1);
+        canopy.castShadow = true;
+        canopy.receiveShadow = true;
+        group.add(canopy);
+
+        // ===========================================
+        // ENHANCED: Building name label with better styling
+        // ===========================================
+        const labelDiv = document.createElement("div");
+        labelDiv.textContent = `Tower ${spec.name}`;
+        labelDiv.style.color = "white";
+        labelDiv.style.fontSize = "24px";
+        labelDiv.style.fontWeight = "bold";
+        labelDiv.style.textShadow = "2px 2px 4px black";
+        labelDiv.style.background = "rgba(33, 150, 243, 0.95)";
+        labelDiv.style.padding = "8px 20px";
+        labelDiv.style.borderRadius = "40px";
+        labelDiv.style.border = "3px solid white";
+        labelDiv.style.boxShadow = "0 8px 20px rgba(0,0,0,0.6)";
+        labelDiv.style.fontFamily = "Arial, sans-serif";
+        labelDiv.style.letterSpacing = "1px";
+        labelDiv.style.backdropFilter = "blur(4px)";
+
+        const label = new CSS2DObject(labelDiv);
+        label.position.set(0, height + 8, 0);
+        group.add(label);
+
+        // Add a small marker light at the top (for night view)
+        const markerGeo = new THREE.SphereGeometry(0.4);
+        const markerMat = new THREE.MeshStandardMaterial({
+          color: 0xffaa00,
+          emissive: 0x442200,
+        });
+        const marker = new THREE.Mesh(markerGeo, markerMat);
+        marker.position.set(0, height + 2, 0);
+        group.add(marker);
+
+        group.position.set(spec.posX, 0, spec.posZ);
+
+        return group;
+      }
+
+      // Create all towers with enhanced details
+      towers.forEach((tower) => {
+        scene.add(createTower(tower));
+      });
+
+      // ===========================================
+      // NEW: TEMPLE BETWEEN TOWER A AND TOWER E
+      // ===========================================
+
+      function createTemple(x, z) {
+        const templeGroup = new THREE.Group();
+
+        // Temple platform (base)
+        const platformGeo = new THREE.BoxGeometry(10, 1, 10);
+        const platformMat = new THREE.MeshStandardMaterial({
+          color: 0xcccccc,
+          roughness: 0.7,
+        });
+        const platform = new THREE.Mesh(platformGeo, platformMat);
+        platform.position.y = 0.5;
+        platform.castShadow = true;
+        platform.receiveShadow = true;
+        templeGroup.add(platform);
+
+        // Temple main structure
+        const mainGeo = new THREE.BoxGeometry(6, 4, 6);
+        const mainMat = new THREE.MeshStandardMaterial({
+          color: 0xfff0e0,
+          roughness: 0.6,
+        });
+        const main = new THREE.Mesh(mainGeo, mainMat);
+        main.position.y = 3;
+        main.castShadow = true;
+        main.receiveShadow = true;
+        templeGroup.add(main);
+
+        // Temple pillars (4 corners)
+        const pillarGeo = new THREE.CylinderGeometry(0.5, 0.5, 4);
+        const pillarMat = new THREE.MeshStandardMaterial({
+          color: 0xdeaa87,
+          roughness: 0.5,
+        });
+
+        const positions = [
+          [-2.5, 2, -2.5],
+          [2.5, 2, -2.5],
+          [-2.5, 2, 2.5],
+          [2.5, 2, 2.5],
+        ];
+
+        positions.forEach((pos) => {
+          const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+          pillar.position.set(pos[0], pos[1], pos[2]);
+          pillar.castShadow = true;
+          pillar.receiveShadow = true;
+          templeGroup.add(pillar);
+        });
+
+        // Temple roof (pyramid style)
+        const roofGeo = new THREE.ConeGeometry(4, 2.5, 8);
+        const roofMat = new THREE.MeshStandardMaterial({
+          color: 0xddaa66,
+          roughness: 0.8,
+        });
+        const roof = new THREE.Mesh(roofGeo, roofMat);
+        roof.position.y = 5.5;
+        roof.castShadow = true;
+        roof.receiveShadow = true;
+        templeGroup.add(roof);
+
+        // Temple top ornament (kalash)
+        const kalashGeo = new THREE.CylinderGeometry(0.4, 0.6, 1, 6);
+        const kalashMat = new THREE.MeshStandardMaterial({
+          color: 0xffaa00,
+          metalness: 0.7,
+          roughness: 0.3,
+        });
+        const kalash = new THREE.Mesh(kalashGeo, kalashMat);
+        kalash.position.y = 7;
+        kalash.castShadow = true;
+        templeGroup.add(kalash);
+
+        const topGeo = new THREE.SphereGeometry(0.3);
+        const topMat = new THREE.MeshStandardMaterial({
+          color: 0xffdd44,
+          emissive: 0x442200,
+        });
+        const top = new THREE.Mesh(topGeo, topMat);
+        top.position.y = 7.5;
+        top.castShadow = true;
+        templeGroup.add(top);
+
+        // Temple entrance (door)
+        const doorGeo = new THREE.BoxGeometry(1.5, 2, 0.5);
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+        const door = new THREE.Mesh(doorGeo, doorMat);
+        door.position.set(0, 1.5, 3.1);
+        door.castShadow = true;
+        door.receiveShadow = true;
+        templeGroup.add(door);
+
+        // Temple windows (decorative)
+        const windowGeo = new THREE.BoxGeometry(1, 1, 0.3);
+        const windowMat = new THREE.MeshStandardMaterial({
+          color: 0x87ceeb,
+          emissive: 0x112233,
+        });
+
+        const windowPositions = [
+          [-1.5, 2.5, 3.1],
+          [1.5, 2.5, 3.1],
+          [3.1, 2.5, -1.5],
+          [3.1, 2.5, 1.5],
+          [-3.1, 2.5, -1.5],
+          [-3.1, 2.5, 1.5],
+        ];
+
+        windowPositions.forEach((pos) => {
+          const win = new THREE.Mesh(windowGeo, windowMat);
+          win.position.set(pos[0], pos[1], pos[2]);
+          win.castShadow = true;
+          templeGroup.add(win);
+        });
+
+        // Temple flag (small)
+        const flagPoleGeo = new THREE.CylinderGeometry(0.1, 0.1, 2);
+        const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+        const flagPole = new THREE.Mesh(flagPoleGeo, flagPoleMat);
+        flagPole.position.set(2, 8, 2);
+        flagPole.castShadow = true;
+        templeGroup.add(flagPole);
+
+        const flagGeo = new THREE.BoxGeometry(0.8, 0.5, 0.1);
+        const flagMat = new THREE.MeshStandardMaterial({ color: 0xff9933 });
+        const flag = new THREE.Mesh(flagGeo, flagMat);
+        flag.position.set(2.5, 8.5, 2);
+        flag.castShadow = true;
+        templeGroup.add(flag);
+
+        // Temple lighting (small lamps)
+        const lampMat = new THREE.MeshStandardMaterial({
+          color: 0xffaa00,
+          emissive: 0x442200,
+        });
+        for (let i = 0; i < 4; i++) {
+          const lampGeo = new THREE.SphereGeometry(0.2);
+          const lamp = new THREE.Mesh(lampGeo, lampMat);
+          lamp.position.set(-1.5 + i, 1, 3.1);
+          lamp.castShadow = true;
+          templeGroup.add(lamp);
+        }
+
+        // Temple name label
+        const templeLabelDiv = document.createElement("div");
+        templeLabelDiv.textContent = "🛕 Temple";
+        templeLabelDiv.style.color = "#FFD700";
+        templeLabelDiv.style.fontSize = "20px";
+        templeLabelDiv.style.fontWeight = "bold";
+        templeLabelDiv.style.textShadow = "2px 2px 4px black";
+        templeLabelDiv.style.background = "rgba(139, 69, 19, 0.9)";
+        templeLabelDiv.style.padding = "5px 15px";
+        templeLabelDiv.style.borderRadius = "30px";
+        templeLabelDiv.style.border = "2px solid #FFD700";
+
+        const templeLabel = new CSS2DObject(templeLabelDiv);
+        templeLabel.position.set(0, 9, 0);
+        templeGroup.add(templeLabel);
+
+        // Path to temple
+        const pathMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+
+        // Path from Tower A to Temple
+        const pathAToTemple = new THREE.Mesh(
+          new THREE.BoxGeometry(2, 0.1, 8),
+          pathMat,
+        );
+        pathAToTemple.position.set(20, 0.05, 35);
+        pathAToTemple.receiveShadow = true;
+        templeGroup.add(pathAToTemple);
+
+        // Path from Tower E to Temple
+        const pathEToTemple = new THREE.Mesh(
+          new THREE.BoxGeometry(2, 0.1, 8),
+          pathMat,
+        );
+        pathEToTemple.position.set(20, 0.05, 55);
+        pathEToTemple.receiveShadow = true;
+        templeGroup.add(pathEToTemple);
+
+        // Small garden around temple
+        const gardenGeo = new THREE.CircleGeometry(6, 16);
+        const gardenMat = new THREE.MeshStandardMaterial({
+          color: 0x4caf50,
+          roughness: 0.7,
+        });
+        const garden = new THREE.Mesh(gardenGeo, gardenMat);
+        garden.rotation.x = -Math.PI / 2;
+        garden.position.y = 0.02;
+        garden.receiveShadow = true;
+        templeGroup.add(garden);
+
+        // Small bushes around temple
+        const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57 });
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const radius = 4;
+          const bushGeo = new THREE.SphereGeometry(0.4);
+          const bush = new THREE.Mesh(bushGeo, bushMat);
+          bush.position.set(
+            Math.cos(angle) * radius,
+            0.3,
+            Math.sin(angle) * radius,
+          );
+          bush.castShadow = true;
+          bush.receiveShadow = true;
+          templeGroup.add(bush);
+        }
+
+        templeGroup.position.set(x, 0, z);
+        return templeGroup;
+      }
+
+      // Add temple between Tower A (20,20) and Tower E (20,70)
+      // Position at x=20, z=45 (midpoint between the two towers)
+      scene.add(createTemple(20, 45));
+
+      // ===========================================
+      // ENHANCED: CENTRAL PLAYGROUND with more details
+      // ===========================================
+
+      // Main playground area (green) - centered between the two lines
+      const playgroundGeo = new THREE.CircleGeometry(25, 32);
+      const playgroundMat = new THREE.MeshStandardMaterial({
+        color: 0x4caf50,
+        roughness: 0.7,
+        emissive: 0x112211,
+      });
+      const playground = new THREE.Mesh(playgroundGeo, playgroundMat);
+      playground.rotation.x = -Math.PI / 2;
+      playground.position.set(57.5, 0.05, 45); // Centered between front (z=20) and back (z=70)
+      playground.receiveShadow = true;
+      scene.add(playground);
+
+      // Football field markings
+      const fieldMarkingMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+      // Center circle
+      const centerPoints = [];
+      for (let i = 0; i <= 32; i++) {
+        const angle = (i / 32) * Math.PI * 2;
+        centerPoints.push(
+          new THREE.Vector3(
+            57.5 + Math.cos(angle) * 5,
+            0.1,
+            45 + Math.sin(angle) * 5,
+          ),
+        );
+      }
+      const centerCircleGeo = new THREE.BufferGeometry().setFromPoints(
+        centerPoints,
+      );
+      const centerCircle = new THREE.Line(centerCircleGeo, fieldMarkingMat);
+      scene.add(centerCircle);
+
+      // Halfway line
+      const halfwayPoints = [
+        new THREE.Vector3(57.5, 0.1, 35),
+        new THREE.Vector3(57.5, 0.1, 55),
+      ];
+      const halfwayGeo = new THREE.BufferGeometry().setFromPoints(
+        halfwayPoints,
+      );
+      const halfwayLine = new THREE.Line(halfwayGeo, fieldMarkingMat);
+      scene.add(halfwayLine);
+
+      // Center spot
+      const centerSpotGeo = new THREE.CircleGeometry(0.5, 16);
+      const centerSpotMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const centerSpot = new THREE.Mesh(centerSpotGeo, centerSpotMat);
+      centerSpot.rotation.x = -Math.PI / 2;
+      centerSpot.position.set(57.5, 0.1, 45);
+      scene.add(centerSpot);
+
+      // Playground equipment (swings and slides)
+      function createPlaygroundEquipment(x, z) {
+        const group = new THREE.Group();
+
+        // Slide
+        const slideMat = new THREE.MeshStandardMaterial({ color: 0xff5722 });
+
+        // Slide ladder
+        const ladderGeo = new THREE.BoxGeometry(2, 2, 0.5);
+        const ladder = new THREE.Mesh(ladderGeo, slideMat);
+        ladder.position.set(0, 1, 0);
+        group.add(ladder);
+
+        // Slide chute
+        const chuteGeo = new THREE.BoxGeometry(3, 0.2, 1);
+        const chute = new THREE.Mesh(chuteGeo, slideMat);
+        chute.position.set(2, 0.5, 0);
+        chute.rotation.z = -0.3;
+        group.add(chute);
+
+        group.position.set(x, 0, z);
+        return group;
+      }
+
+      // Add playground equipment
+      scene.add(createPlaygroundEquipment(50, 45));
+      scene.add(createPlaygroundEquipment(65, 45));
+
+      // --- Create Amenities ---
+
+      // Clubhouse
+      const clubhouseGeo = new THREE.BoxGeometry(18, 5, 14);
+      const clubhouseMat = new THREE.MeshStandardMaterial({
+        color: 0xc0b0a0,
+        roughness: 0.5,
+      });
+      const clubhouse = new THREE.Mesh(clubhouseGeo, clubhouseMat);
+      clubhouse.position.set(57.5, 2.5, 30);
+      clubhouse.castShadow = true;
+      clubhouse.receiveShadow = true;
+      scene.add(clubhouse);
+
+      // Clubhouse roof
+      const clubRoofGeo = new THREE.ConeGeometry(9, 2.5, 4);
+      const clubRoofMat = new THREE.MeshStandardMaterial({ color: 0x8a3a2a });
+      const clubRoof = new THREE.Mesh(clubRoofGeo, clubRoofMat);
+      clubRoof.position.set(57.5, 6, 30);
+      clubRoof.rotation.y = Math.PI / 4;
+      clubRoof.castShadow = true;
+      clubRoof.receiveShadow = true;
+      scene.add(clubRoof);
+
+      // Swimming pool
+      const poolGeo = new THREE.BoxGeometry(22, 0.5, 12);
+      const poolMat = new THREE.MeshStandardMaterial({
+        color: 0x3399ff,
+        emissive: 0x112233,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const pool = new THREE.Mesh(poolGeo, poolMat);
+      pool.position.set(57.5, 0.25, 60);
+      pool.receiveShadow = true;
+      scene.add(pool);
+
+      // Pool deck
+      const deckGeo = new THREE.BoxGeometry(24, 0.2, 14);
+      const deckMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+      const deck = new THREE.Mesh(deckGeo, deckMat);
+      deck.position.set(57.5, 0.1, 60);
+      deck.receiveShadow = true;
+      scene.add(deck);
+
+      // --- Roads connecting to playground ---
+      function createRoads() {
+        const roadMat = new THREE.MeshStandardMaterial({
+          color: 0x2a2a2a,
+          roughness: 0.9,
+        });
+
+        // Main internal roads
+        const roadPositions = [
+          // Horizontal roads connecting to playground
+          { w: 100, h: 0.2, d: 6, x: 57.5, y: 0.1, z: 30 }, // Road in front of playground
+          { w: 100, h: 0.2, d: 6, x: 57.5, y: 0.1, z: 60 }, // Road behind playground
+          // Vertical roads between buildings
+          { w: 6, h: 0.2, d: 100, x: 20, y: 0.1, z: 45 },
+          { w: 6, h: 0.2, d: 100, x: 45, y: 0.1, z: 45 },
+          { w: 6, h: 0.2, d: 100, x: 70, y: 0.1, z: 45 },
+          { w: 6, h: 0.2, d: 100, x: 95, y: 0.1, z: 45 },
+        ];
+
+        roadPositions.forEach((pos) => {
+          const roadGeo = new THREE.BoxGeometry(pos.w, pos.h, pos.d);
+          const road = new THREE.Mesh(roadGeo, roadMat);
+          road.position.set(pos.x, pos.y, pos.z);
+          road.receiveShadow = true;
+          scene.add(road);
+        });
+      }
+
+      createRoads();
+
+      // --- Parking areas ---
+      function createParking(x, z) {
+        const parkingGeo = new THREE.BoxGeometry(15, 0.2, 10);
+        const parkingMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+        const parking = new THREE.Mesh(parkingGeo, parkingMat);
+        parking.position.set(x, 0.1, z);
+        parking.receiveShadow = true;
+        scene.add(parking);
+
+        // Add some cars
+        for (let i = 0; i < 4; i++) {
+          const carColor = [0xff3333, 0x3333ff, 0x33ff33, 0xffff33][i % 4];
+
+          // Car body
+          const carGeo = new THREE.BoxGeometry(1.8, 0.4, 0.9);
+          const carMat = new THREE.MeshStandardMaterial({ color: carColor });
+          const car = new THREE.Mesh(carGeo, carMat);
+          car.position.set(x - 3 + i * 2, 0.3, z);
+          car.castShadow = true;
+          car.receiveShadow = true;
+          scene.add(car);
+
+          // Car roof
+          const roofGeo = new THREE.BoxGeometry(1, 0.3, 0.5);
+          const roofMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+          const roof = new THREE.Mesh(roofGeo, roofMat);
+          roof.position.set(x - 3 + i * 2 - 0.2, 0.65, z);
+          roof.castShadow = true;
+          roof.receiveShadow = true;
+          scene.add(roof);
+        }
+      }
+
+      // Parking near each building
+      createParking(20, 10);
+      createParking(45, 10);
+      createParking(70, 10);
+      createParking(95, 10);
+      createParking(20, 80);
+      createParking(45, 80);
+      createParking(70, 80);
+      createParking(95, 80);
+
+      // --- Boundary wall ---
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a });
+
+      // Perimeter
+      const wallLength = 120;
+      const wallPositions = [
+        { w: wallLength, h: 2.5, d: 0.5, x: 57.5, y: 1.25, z: 0 },
+        { w: wallLength, h: 2.5, d: 0.5, x: 57.5, y: 1.25, z: 90 },
+        { w: 0.5, h: 2.5, d: wallLength, x: 0, y: 1.25, z: 45 },
+        { w: 0.5, h: 2.5, d: wallLength, x: 115, y: 1.25, z: 45 },
+      ];
+
+      wallPositions.forEach((pos) => {
+        const wallGeo = new THREE.BoxGeometry(pos.w, pos.h, pos.d);
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.set(pos.x, pos.y, pos.z);
+        wall.castShadow = true;
+        wall.receiveShadow = true;
+        scene.add(wall);
+      });
+
+      // --- Main entrance gate ---
+      const gatePillarGeo = new THREE.BoxGeometry(1.5, 5, 1.5);
+      const gatePillarMat = new THREE.MeshStandardMaterial({ color: 0xcc9966 });
+
+      const pillar1 = new THREE.Mesh(gatePillarGeo, gatePillarMat);
+      pillar1.position.set(55, 2.5, 0);
+      pillar1.castShadow = true;
+      pillar1.receiveShadow = true;
+      scene.add(pillar1);
+
+      const pillar2 = new THREE.Mesh(gatePillarGeo, gatePillarMat);
+      pillar2.position.set(60, 2.5, 0);
+      pillar2.castShadow = true;
+      pillar2.receiveShadow = true;
+      scene.add(pillar2);
+
+      // Gate arch
+      const archGeo = new THREE.BoxGeometry(8, 0.8, 1);
+      const archMat = new THREE.MeshStandardMaterial({ color: 0xaa8866 });
+      const arch = new THREE.Mesh(archGeo, archMat);
+      arch.position.set(57.5, 5, 0);
+      arch.castShadow = true;
+      arch.receiveShadow = true;
+      scene.add(arch);
+
+      // --- Project name sign ---
+      const signCanvas = document.createElement("canvas");
+      signCanvas.width = 512;
+      signCanvas.height = 128;
+      const sCtx = signCanvas.getContext("2d");
+      sCtx.fillStyle = "#1a3a5a";
+      sCtx.fillRect(0, 0, 512, 128);
+      sCtx.strokeStyle = "#4CAF50";
+      sCtx.lineWidth = 8;
+      sCtx.strokeRect(4, 4, 504, 120);
+      sCtx.font = "bold 48px Arial";
+      sCtx.fillStyle = "#ffffff";
+      sCtx.fillText("SUPERMAX", 50, 70);
+      sCtx.font = "bold 36px Arial";
+      sCtx.fillStyle = "#4CAF50";
+      sCtx.fillText("THE NEW TOWN", 200, 110);
+
+      const signTexture = new THREE.CanvasTexture(signCanvas);
+      const signMat = new THREE.MeshStandardMaterial({ map: signTexture });
+      const signGeo = new THREE.BoxGeometry(10, 2.5, 0.5);
+      const sign = new THREE.Mesh(signGeo, signMat);
+      sign.position.set(57.5, 7, -2);
+      scene.add(sign);
+
+      // Add surrounding trees
+      for (let i = 0; i < 30; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 80 + Math.random() * 30;
+        const x = 57.5 + Math.cos(angle) * radius;
+        const z = 45 + Math.sin(angle) * radius;
+
+        const trunkGeo = new THREE.CylinderGeometry(0.4, 0.7, 4);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6a5a4a });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.set(x, 2, z);
+        trunk.castShadow = true;
+        trunk.receiveShadow = true;
+        scene.add(trunk);
+
+        const foliageGeo = new THREE.ConeGeometry(1.5, 3, 8);
+        const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2a8a2a });
+        const foliage = new THREE.Mesh(foliageGeo, foliageMat);
+        foliage.position.set(x, 5, z);
+        foliage.castShadow = true;
+        foliage.receiveShadow = true;
+        scene.add(foliage);
+      }
+
+      // Hide loading
+      setTimeout(() => {
+        document.getElementById("loading").style.display = "none";
+      }, 2000);
+
+      // --- Lighting controls ---
+      const dayBtn = document.getElementById("dayBtn");
+      const eveningBtn = document.getElementById("eveningBtn");
+      const nightBtn = document.getElementById("nightBtn");
+      const resetBtn = document.getElementById("resetView");
+      const toggleLabels = document.getElementById("toggleLabels");
+      const isEmbedMode = document.body.classList.contains("embed-mode");
+      let labelsVisible = !isEmbedMode;
+
+      dayBtn.addEventListener("click", () => {
+        sunLight.position.set(60, 100, 60);
+        sunLight.intensity = 1.8;
+        sunLight.color.setHex(0xfff5e6);
+        ambientLight.intensity = 0.4;
+        scene.background = skyTexture;
+      });
+
+      eveningBtn.addEventListener("click", () => {
+        sunLight.position.set(20, 20, 80);
+        sunLight.intensity = 1.2;
+        sunLight.color.setHex(0xffaa66);
+        ambientLight.intensity = 0.2;
+        scene.background = new THREE.Color(0x3a5a7a);
+      });
+
+      nightBtn.addEventListener("click", () => {
+        sunLight.position.set(0, -50, 0);
+        sunLight.intensity = 0.1;
+        ambientLight.intensity = 0.1;
+        scene.background = new THREE.Color(0x0a1a2a);
+
+        // Add window lights (yellow glow)
+        scene.traverse((obj) => {
+          if (obj.isMesh && obj.material) {
+            // Make windows glow at night
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach((mat) => {
+                if (mat.map && mat.map.image) {
+                  mat.emissive.setHex(0x332211);
+                }
+              });
+            } else if (obj.material.map && obj.material.map.image) {
+              obj.material.emissive.setHex(0x332211);
+            }
+          }
+        });
+      });
+
+      resetBtn.addEventListener("click", () => {
+        camera.position.set(80, 60, 120);
+        controls.target.set(57.5, 15, 45);
+        controls.autoRotate = true;
+      });
+
+      if (isEmbedMode) {
+        scene.traverse((obj) => {
+          if (obj instanceof CSS2DObject) obj.visible = false;
+        });
+      } else if (toggleLabels) {
+        toggleLabels.addEventListener("click", () => {
+          labelsVisible = !labelsVisible;
+          scene.traverse((obj) => {
+            if (obj instanceof CSS2DObject) obj.visible = labelsVisible;
+          });
+          toggleLabels.textContent = labelsVisible
+            ? "🏷️ Hide Labels"
+            : "🏷️ Show Labels";
+        });
+      }
+
+      // --- Animation Loop ---
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+        labelRenderer.render(scene, camera);
+      }
+
+      animate();
+
+      // --- Window Resize ---
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>

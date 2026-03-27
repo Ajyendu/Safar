@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safar — Combined</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.7/dist/leaflet-rotate.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js" crossorigin=""></script>
+  <style>
+    .leaflet-control-container { display: none; }
+    .leaflet-container { background: #fdfbf7; font-family: 'Inter', sans-serif; }
+    .custom-marker-icon > div { transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .custom-marker-icon:hover > div { transform: scale(1.12) translateY(-3px); z-index: 1000 !important; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes typing {
+      0%, 100% { transform: translateY(0); opacity: 0.5; }
+      50% { transform: translateY(-4px); opacity: 1; }
+    }
+    .typing-dot { animation: typing 1s infinite ease-in-out; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    .pulse-ring { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.75; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .panel-slide-left { transform: translateX(-100%); opacity: 0; }
+    .panel-slide-active { transform: translateX(0); opacity: 1; }
+    .panel-slide-right { transform: translateX(100%); opacity: 0; }
+    @media (max-width: 768px) {
+      .panel-slide-left, .panel-slide-right { transform: translateY(100%); }
+      .panel-slide-active { transform: translateY(0); }
+    }
+    @keyframes pulse-ring-tour {
+      0% { transform: scale(0.8); opacity: 0.5; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    .animate-pulse-ring-tour {
+      animation: pulse-ring-tour 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      transform-origin: center;
+    }
+    @keyframes scan-qr {
+      0%, 100% { top: 0%; opacity: 0; }
+      10%, 90% { opacity: 1; }
+      50% { top: 98%; opacity: 1; }
+    }
+    .animate-scan-qr { animation: scan-qr 3s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+    .cutout-shadow-qr { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85); }
+    .metro-scroll::-webkit-scrollbar { width: 6px; }
+    .metro-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    /* Driving-style tilt (CSS only; true 3D map needs MapLibre/Mapbox). */
+    #map-tilt-wrap { -webkit-tap-highlight-color: transparent; }
+    #map-tilt-wrap.map-live-nav-tilt {
+      perspective: 980px;
+      perspective-origin: 50% 58%;
+    }
+    #map-tilt-wrap.map-live-nav-tilt #map.leaflet-container {
+      transform-origin: 50% 68%;
+      transform: rotateX(14deg) scale(1.03);
+      transition: transform 0.55s cubic-bezier(0.22, 0.1, 0.19, 1);
+    }
+    body.dark-ui {
+      background: #0b1220;
+      color: #e2e8f0;
+    }
+    body.dark-ui #home-overlay {
+      background: #0b1220;
+      color: #e2e8f0;
+    }
+    body.dark-ui #home-overlay nav {
+      background: rgba(15, 23, 42, 0.8);
+      border-color: rgba(148, 163, 184, 0.18);
+    }
+    body.dark-ui #map-brand-chip {
+      background: rgba(15, 23, 42, 0.9);
+      color: #e2e8f0;
+      border-color: rgba(148, 163, 184, 0.28);
+    }
+    body.dark-ui #map-brand-chip span {
+      color: #e2e8f0;
+    }
+    body.dark-ui #paris-explore,
+    body.dark-ui #place-panel,
+    body.dark-ui #view-list,
+    body.dark-ui #view-detail {
+      background: rgba(15, 23, 42, 0.92);
+      color: #e2e8f0;
+    }
+    .destination-flip-card {
+      perspective: 1200px;
+      overflow: visible;
+    }
+    .destination-flip-inner {
+      position: relative;
+      height: 100%;
+      width: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.55s ease-in-out;
+      will-change: transform;
+    }
+    .destination-flip-card.is-flipped .destination-flip-inner {
+      transform: rotateY(180deg);
+    }
+    .destination-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transform: translateZ(0);
+      border-radius: 1.5rem;
+      overflow: hidden;
+    }
+    .destination-face-back {
+      transform: rotateY(180deg);
+    }
+  </style>
+  </head>
+<body class="relative h-screen w-screen overflow-hidden bg-[#fdfbf7] font-['Inter'] text-slate-800 antialiased selection:bg-[#f97316]/20 selection:text-[#f97316]">
+
+  <div id="map-tilt-wrap" class="absolute inset-0 z-0 h-full w-full overflow-hidden">
+    <div id="map" class="h-full w-full"></div>
+  </div>
+
+  <div id="toast" class="pointer-events-none absolute left-1/2 top-6 z-50 flex -translate-x-1/2 -translate-y-[150%] items-center gap-3 rounded-full bg-slate-900/95 px-5 py-3 text-sm font-medium text-white shadow-2xl backdrop-blur-xl transition-all duration-500">
+    <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[#f97316]">
+      <iconify-icon icon="solar:map-point-wave-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+    </div>
+    <span id="toast-msg">Welcome to Safar</span>
+  </div>
+
+  <!-- Map-only UI: hidden on landing/home; shown after startFromHome() -->
+  <div id="map-chrome" class="hidden">
+  <div id="nav-banner" class="pointer-events-auto absolute left-1/2 top-6 z-[110] flex w-[92%] max-w-lg -translate-x-1/2 -translate-y-[150%] flex-col gap-3 rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl transition-all duration-500 md:w-auto md:min-w-[420px]">
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex min-w-0 flex-1 items-center gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#38bdf8]/10 text-[#38bdf8]">
+          <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-2xl"></iconify-icon>
+        </div>
+        <div class="min-w-0">
+          <h3 class="text-sm font-medium tracking-tight text-slate-900"><span id="nav-banner-label">Route to</span> <span id="nav-target">Place</span></h3>
+          <div class="text-xs text-slate-500" id="nav-stats">Choose a mode below</div>
+          <p class="mt-0.5 hidden text-[11px] font-medium leading-snug text-emerald-600" id="nav-live-row" aria-live="polite"></p>
+        </div>
+      </div>
+      <button type="button" id="nav-banner-close" class="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500" aria-label="Close route">
+        <iconify-icon icon="solar:close-circle-linear" stroke-width="1.5" class="pointer-events-none text-xl"></iconify-icon>
+      </button>
+    </div>
+    <div id="nav-mode-row" class="flex flex-wrap gap-1.5" role="group" aria-label="Route mode">
+      <button type="button" class="nav-mode-btn flex min-h-[44px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-2 transition-colors sm:px-3" data-nav-mode="walk" aria-label="Walking" title="Walking">
+        <iconify-icon icon="solar:walking-round-linear" stroke-width="1.5" class="pointer-events-none text-[22px]"></iconify-icon>
+      </button>
+      <button type="button" class="nav-mode-btn flex min-h-[44px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-2 transition-colors sm:px-3" data-nav-mode="2w" aria-label="Bike / two wheeler" title="Bike / two wheeler">
+        <iconify-icon icon="mdi:bicycle" class="pointer-events-none text-[22px]"></iconify-icon>
+      </button>
+      <button type="button" class="nav-mode-btn flex min-h-[44px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-2 transition-colors sm:px-3" data-nav-mode="car" aria-label="Car / four wheeler" title="Car / four wheeler">
+        <iconify-icon icon="mdi:car" class="pointer-events-none text-[22px]"></iconify-icon>
+      </button>
+      <button type="button" class="nav-mode-btn flex min-h-[44px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-2 transition-colors sm:px-3" data-nav-mode="metro" aria-label="Metro" title="Metro">
+        <iconify-icon icon="solar:tram-linear" stroke-width="1.5" class="pointer-events-none text-[22px]"></iconify-icon>
+      </button>
+    </div>
+
+    <div id="nav-metro-legs" class="hidden flex-col gap-3 rounded-2xl bg-slate-50/90 p-3 ring-1 ring-slate-200/80">
+      <div>
+        <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">To metro station</p>
+        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Access mode to metro">
+          <button type="button" class="nav-metro-leg-btn flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-1.5 transition-colors sm:px-3" data-metro-leg="first" data-leg-mode="walk" aria-label="Walk to metro" title="Walk to metro">
+            <iconify-icon icon="solar:walking-round-linear" stroke-width="1.5" class="pointer-events-none text-[20px]"></iconify-icon>
+          </button>
+          <button type="button" class="nav-metro-leg-btn flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-1.5 transition-colors sm:px-3" data-metro-leg="first" data-leg-mode="2w" aria-label="Bike to metro" title="Bike to metro">
+            <iconify-icon icon="mdi:bicycle" class="pointer-events-none text-[20px]"></iconify-icon>
+          </button>
+          <button type="button" class="nav-metro-leg-btn flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-1.5 transition-colors sm:px-3" data-metro-leg="first" data-leg-mode="car" aria-label="Drive to metro" title="Drive to metro">
+            <iconify-icon icon="mdi:car" class="pointer-events-none text-[20px]"></iconify-icon>
+          </button>
+        </div>
+      </div>
+      <div>
+        <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">From metro to destination</p>
+        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Access mode from metro">
+          <button type="button" class="nav-metro-leg-btn flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-1.5 transition-colors sm:px-3" data-metro-leg="last" data-leg-mode="walk" aria-label="Walk from metro" title="Walk from metro">
+            <iconify-icon icon="solar:walking-round-linear" stroke-width="1.5" class="pointer-events-none text-[20px]"></iconify-icon>
+          </button>
+          <button type="button" class="nav-metro-leg-btn flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-1.5 transition-colors sm:px-3" data-metro-leg="last" data-leg-mode="2w" aria-label="Bike from metro" title="Bike from metro">
+            <iconify-icon icon="mdi:bicycle" class="pointer-events-none text-[20px]"></iconify-icon>
+          </button>
+          <button type="button" class="nav-metro-leg-btn flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-1.5 transition-colors sm:px-3" data-metro-leg="last" data-leg-mode="car" aria-label="Drive from metro" title="Drive from metro">
+            <iconify-icon icon="mdi:car" class="pointer-events-none text-[20px]"></iconify-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="nav-direction-strip" class="hidden border-t border-slate-100 pt-3">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Next</p>
+      <p id="nav-current-step" class="mt-1 text-sm font-semibold leading-snug text-slate-900"></p>
+      <p id="nav-next-step" class="mt-1 text-xs leading-snug text-slate-600"></p>
+    </div>
+    <button type="button" id="nav-live-start-btn" class="w-full rounded-xl bg-slate-900 px-3 py-2.5 text-center text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400" aria-pressed="false" title="Follow your GPS on the map">
+      Start live navigation
+    </button>
+  </div>
+
+  <div id="monument-entry-card" class="pointer-events-auto absolute left-1/2 top-6 z-[111] hidden w-[92%] max-w-lg -translate-x-1/2 rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h3 class="text-base font-semibold tracking-tight text-slate-900">You are in India Gate Monument Zone</h3>
+        <p class="mt-1 text-sm text-slate-600">Enter Monument Mode to view QR checkpoints, route tracks, and on-site info.</p>
+      </div>
+    </div>
+    <div class="mt-3 flex gap-2">
+      <button type="button" id="monument-entry-open" class="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+        Enter Monument Mode
+      </button>
+    </div>
+  </div>
+
+  <div id="home-confirm-card" class="fixed inset-0 z-[1400] hidden items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
+    <div class="pointer-events-auto w-[92%] max-w-lg rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-base font-semibold tracking-tight text-slate-900">Leave navigation and go to Home?</h3>
+          <p class="mt-1 text-sm text-slate-600">Your current live navigation will be stopped.</p>
+        </div>
+      </div>
+      <div class="mt-3 flex gap-2">
+        <button type="button" id="home-confirm-cancel" class="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          Stay here
+        </button>
+        <button type="button" id="home-confirm-go" class="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+          Go to Home
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="monument-rating-card" class="fixed inset-0 z-[1405] hidden items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
+    <div class="pointer-events-auto w-[92%] max-w-lg rounded-3xl bg-white/95 p-5 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl">
+      <h3 class="text-base font-semibold tracking-tight text-slate-900">Rate this monument experience</h3>
+      <p class="mt-1 text-sm text-slate-600">All checkpoints are completed. Give a rating out of 5.</p>
+      <div class="mt-4 grid grid-cols-5 gap-2">
+        <button type="button" class="monument-rate-btn rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-rate="1">1</button>
+        <button type="button" class="monument-rate-btn rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-rate="2">2</button>
+        <button type="button" class="monument-rate-btn rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-rate="3">3</button>
+        <button type="button" class="monument-rate-btn rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-rate="4">4</button>
+        <button type="button" class="monument-rate-btn rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-rate="5">5</button>
+      </div>
+      <div class="mt-3 flex justify-end">
+        <button type="button" id="monument-rating-later" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Later</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="pointer-events-auto absolute left-4 right-4 top-4 z-[100] flex flex-wrap items-start justify-between gap-2 md:left-6 md:right-6 md:top-6">
+    <div id="map-brand-chip" class="flex items-center rounded-full bg-white/90 px-4 py-2 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-2xl pointer-events-auto">
+      <span class="text-sm sm:text-base font-semibold tracking-[0.18em] text-slate-900 uppercase leading-none">Safar</span>
+    </div>
+
+    <div id="map-top-controls" class="pointer-events-auto ml-auto flex flex-wrap items-center gap-2">
+      <button type="button" id="btn-qr-scan" class="hidden h-11 w-11 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white" title="Open QR scanner" aria-label="Open QR scanner">
+        <iconify-icon icon="solar:qr-code-linear" stroke-width="1.5" class="text-xl text-slate-700"></iconify-icon>
+      </button>
+      <button type="button" id="btn-exit-monument" class="hidden h-11 items-center justify-center rounded-2xl bg-rose-600/90 px-3 text-sm font-semibold text-white shadow-sm ring-1 ring-rose-700/30 backdrop-blur-xl hover:bg-rose-600" aria-label="Exit monument mode">
+        Exit Monument
+      </button>
+      <button type="button" id="btn-settings" onclick="openSettings()" class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white" aria-label="Settings">
+        <iconify-icon icon="solar:settings-linear" stroke-width="1.5" class="pointer-events-none text-xl text-slate-700"></iconify-icon>
+      </button>
+      <button
+        type="button"
+        id="chat-open-btn"
+        class="pointer-events-auto relative z-[110] flex h-11 w-11 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white"
+        aria-label="Open chat"
+      >
+        <iconify-icon
+          icon="mdi:robot-outline"
+          stroke-width="1.5"
+          class="pointer-events-none text-xl text-slate-700"
+        ></iconify-icon>
+        <span class="pointer-events-none absolute right-2.5 top-2.5 flex h-2 w-2 rounded-full bg-[#f97316] ring-2 ring-white"></span>
+      </button>
+      </div>
+    </header>
+
+  <div class="pointer-events-none absolute bottom-[30vh] right-4 z-20 flex flex-col gap-2 md:bottom-8 md:right-6">
+    <button type="button" class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white active:scale-95" onclick="map.zoomIn()" aria-label="Zoom in">
+      <span class="text-2xl font-bold leading-none text-slate-700">+</span>
+    </button>
+    <button type="button" class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white active:scale-95" onclick="map.zoomOut()" aria-label="Zoom out">
+      <span class="text-2xl font-bold leading-none text-slate-700">−</span>
+    </button>
+    <div class="my-1 h-px w-full bg-slate-200/60"></div>
+    <button type="button" id="btn-cursor-location" class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white active:scale-95" title="Move location with cursor" aria-label="Move location with cursor" aria-pressed="false">
+      <iconify-icon icon="solar:cursor-square-linear" stroke-width="1.5" class="text-xl text-slate-600"></iconify-icon>
+    </button>
+    <button type="button" class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl hover:bg-white active:scale-95" onclick="centerMap()">
+      <iconify-icon icon="solar:gps-linear" stroke-width="1.5" class="text-xl text-[#38bdf8]"></iconify-icon>
+    </button>
+  </div>
+
+  <aside id="chat-panel" class="pointer-events-none fixed bottom-4 right-4 top-24 z-[1200] flex w-[90vw] translate-x-[120%] flex-col overflow-hidden rounded-3xl bg-white/95 shadow-[0_20px_60px_rgba(0,0,0,0.18)] ring-1 ring-slate-900/10 backdrop-blur-2xl transition-transform duration-500 md:bottom-6 md:w-[360px]">
+    <div class="flex items-center justify-between border-b border-slate-100 p-4">
+      <div class="flex items-center gap-3">
+        <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+          <iconify-icon icon="mdi:robot-outline" stroke-width="1.5" class="text-xl text-slate-700"></iconify-icon>
+          <div class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white"></div>
+        </div>
+        <div>
+          <h3 class="font-['Playfair_Display'] text-base font-medium tracking-tight text-slate-900">Safar Saathi</h3>
+          <p class="text-[10px] text-slate-500">Local AI Guide</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-slate-400">Voice</span>
+        <button type="button" id="voice-toggle" class="relative h-5 w-9 rounded-full bg-slate-200 transition-colors duration-300" onclick="toggleVoice()">
+          <div class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-300"></div>
+        </button>
+      </div>
+    </div>
+    <div id="chat-messages" class="no-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div class="flex max-w-[85%] gap-3">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
+          <iconify-icon icon="solar:stars-linear" stroke-width="1.5" class="text-sm text-slate-600"></iconify-icon>
+        </div>
+        <div class="rounded-2xl rounded-tl-none bg-slate-100 px-4 py-3 text-sm text-slate-700">
+          Namaste! I'm Safar Saathi. Try <strong>route</strong>, <strong>metro</strong>, or pick from <strong>Monument Suggestions</strong>.
+        </div>
+      </div>
+          </div>
+    <div class="p-3">
+      <div class="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 focus-within:ring-[#f97316]/50">
+        <input type="text" id="chat-input" placeholder="Ask about places, routes..." class="w-full bg-transparent px-2 text-sm text-slate-700 placeholder:text-slate-400 outline-none" onkeypress="handleChatKey(event)">
+        <button type="button" onclick="sendMsg()" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white transition-transform active:scale-95">
+          <iconify-icon icon="solar:plain-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+            </button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="place-panel" class="pointer-events-auto absolute bottom-6 left-1/2 z-30 flex w-[92vw] -translate-x-1/2 translate-y-[150%] flex-col rounded-3xl bg-white/95 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-slate-900/5 backdrop-blur-2xl transition-transform duration-500 md:w-[420px]">
+    <div class="flex items-start gap-4">
+      <div class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+        <img id="panel-img" src="" class="h-full w-full object-cover" alt="Place">
+      </div>
+      <div class="flex-1 pt-1">
+        <div class="flex items-center justify-between gap-2">
+          <h2 id="panel-title" class="font-['Playfair_Display'] text-lg font-medium tracking-tight text-slate-900">Place Name</h2>
+          <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">Nearby</span>
+        </div>
+        <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+          <iconify-icon icon="solar:star-bold" class="text-amber-400"></iconify-icon>
+          <span id="panel-rating" class="font-medium text-slate-700">Unrated</span>
+          <span id="panel-reviews"></span>
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 flex gap-3">
+      <button type="button" onclick="openDetails()" class="flex flex-1 items-center justify-center rounded-2xl bg-slate-100 py-3.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200 active:scale-95">
+        Explore Story
+              </button>
+      <button type="button" onclick="startJourney()" class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#f97316] py-3.5 text-xs font-medium text-white shadow-lg shadow-[#f97316]/20 transition-colors hover:bg-[#ea580c] active:scale-95">
+        <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-sm"></iconify-icon>
+        Show Route
+              </button>
+            </div>
+          </div>
+
+  <aside id="paris-explore" class="pointer-events-auto absolute bottom-0 left-0 right-0 z-[25] hidden max-h-[36vh] flex-col overflow-hidden rounded-t-3xl bg-white/90 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-2xl md:bottom-8 md:left-8 md:top-52 md:max-h-none md:w-[380px] md:rounded-3xl md:shadow-xl">
+    <div class="pointer-events-auto relative flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div class="relative min-h-0 flex-1 w-full overflow-hidden">
+      <div id="view-list" class="panel-slide-active absolute inset-0 flex flex-col transition-all duration-500">
+        <div class="flex w-full items-center justify-center pt-3 pb-1 md:hidden">
+          <div class="h-1 w-10 rounded-full bg-slate-300"></div>
+        </div>
+        <div class="px-5 pb-3 pt-2 md:pt-6">
+          <h2 id="explore-heading" class="text-xl font-semibold tracking-tight text-slate-900">Monument Suggestions</h2>
+          <p class="mt-0.5 text-xs text-slate-500">Tap a card or map marker to explore details</p>
+        </div>
+        <div class="px-5 pb-3">
+          <div class="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200">
+            <iconify-icon icon="solar:magnifier-linear" class="ml-2 text-lg text-slate-400"></iconify-icon>
+            <input id="explore-search" type="search" placeholder="Filter monuments…" class="w-full bg-transparent py-2 text-sm outline-none">
+          </div>
+        </div>
+        <div id="places-container" class="no-scrollbar flex-1 overflow-y-auto px-3 pb-6"></div>
+      </div>
+      <div id="view-detail" class="panel-slide-right absolute inset-0 flex flex-col bg-white transition-all duration-500">
+        <div class="no-scrollbar flex-1 overflow-y-auto p-5 pb-4">
+          <div class="flex items-center gap-3 pb-1">
+            <button type="button" onclick="showListParis()" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-900 ring-1 ring-slate-200/80">
+              <iconify-icon icon="solar:arrow-left-linear" stroke-width="2" class="text-lg"></iconify-icon>
+            </button>
+            <span id="detail-tag" class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200/80">Monument</span>
+          </div>
+          <h2 id="detail-title" class="mt-3 text-xl font-semibold tracking-tight text-slate-900">Title</h2>
+          <div class="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+            <iconify-icon icon="solar:star-bold" class="text-amber-400"></iconify-icon>
+            <span class="font-medium text-slate-700" id="detail-rating">4.8</span>
+            <span id="detail-reviews"></span>
+            </div>
+          <p id="detail-desc" class="mt-4 text-sm leading-relaxed text-slate-600">Description</p>
+          <div id="map-travel-metrics-wrap" class="mt-5 hidden rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-100">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Distances from you</p>
+            <div id="map-travel-metrics" class="mt-3"></div>
+          </div>
+        </div>
+        <div class="shrink-0 bg-white px-5 pb-5 pt-2">
+          <button type="button" onclick="openDetails()" class="w-full rounded-2xl bg-slate-900 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800">
+            Full story · gallery · 3D
+          </button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </aside>
+  </div>
+
+  <div id="details-modal" class="pointer-events-none absolute inset-0 z-40 bg-slate-900/40 opacity-0 backdrop-blur-sm transition-opacity duration-500">
+    <div id="details-content" class="absolute bottom-0 left-0 right-0 top-12 flex translate-y-full flex-col overflow-hidden rounded-t-[2.5rem] bg-white shadow-2xl transition-transform duration-500 md:left-1/2 md:top-8 md:mb-8 md:w-[640px] md:-translate-x-1/2 md:rounded-[2.5rem]">
+      <div class="relative h-72 w-full shrink-0 md:h-80">
+        <img id="modal-img" src="" class="h-full w-full object-cover" alt="">
+        <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10"></div>
+        <button type="button" id="modal-hero-prev" onclick="modalHeroGalleryStep(-1)" class="absolute left-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/55 pointer-events-auto" aria-label="Previous photo">
+          <iconify-icon icon="solar:alt-arrow-left-linear" stroke-width="2" class="text-2xl"></iconify-icon>
+            </button>
+        <button type="button" id="modal-hero-next" onclick="modalHeroGalleryStep(1)" class="absolute right-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/55 pointer-events-auto" aria-label="Next photo">
+          <iconify-icon icon="solar:alt-arrow-right-linear" stroke-width="2" class="text-2xl"></iconify-icon>
+            </button>
+        <div class="pointer-events-none absolute bottom-6 left-6 right-6 z-10">
+          <span class="mb-3 inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-white backdrop-blur-md">
+            <iconify-icon icon="solar:map-point-linear" class="text-xs"></iconify-icon> Historical Landmark
+          </span>
+          <h1 id="modal-title" class="font-['Playfair_Display'] text-4xl font-medium tracking-tight text-white drop-shadow-sm">Title</h1>
+        </div>
+      </div>
+      <div class="no-scrollbar pointer-events-auto flex-1 overflow-y-auto bg-white px-6 py-8 md:px-10">
+        <p id="modal-cultural" class="mt-2 text-base font-medium leading-relaxed text-slate-800"></p>
+        <div class="mt-10">
+          <h3 class="font-['Playfair_Display'] text-2xl font-medium tracking-tight text-slate-900">The Story</h3>
+          <p id="modal-desc" class="mt-3 text-sm leading-relaxed text-slate-600"></p>
+        </div>
+        <div class="mt-10">
+          <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-5">Fascinating Facts</h3>
+          <ul id="modal-facts-list" class="space-y-4"></ul>
+        </div>
+        <div id="modal-media-gallery-wrap" class="mt-10 hidden">
+          <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-4">Photo gallery</h3>
+          <div id="modal-gallery-strip" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory"></div>
+        </div>
+        <div id="modal-media-videos-wrap" class="mt-10 hidden">
+          <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-4">Videos</h3>
+          <div id="modal-videos-list" class="space-y-4"></div>
+        </div>
+        <div id="modal-media-3d-wrap" class="mt-10 hidden">
+          <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-4">3D architecture</h3>
+          <p class="text-xs text-slate-500 mb-3">Interactive Sketchfab or your local 3D page (where available).</p>
+          <div class="aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200 shadow-inner">
+            <iframe id="modal-sketchfab-iframe" class="hidden h-full w-full" title="3D model" allowfullscreen="" allow="fullscreen; autoplay; encrypted-media"></iframe>
+            <div id="modal-3d-placeholder" class="hidden h-full min-h-[200px] w-full flex items-center justify-center p-6 text-center text-sm text-slate-500">No 3D embed for this place.</div>
+          </div>
+        </div>
+        <div id="india-gate-tour-cta" class="mt-10 hidden">
+          <button type="button" onclick="enterMonumentMode()" class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-100">
+            India Gate checkpoint tour
+          </button>
+        </div>
+      </div>
+      <div class="pointer-events-auto flex gap-3 border-t border-slate-100 bg-white/95 p-5 backdrop-blur-xl">
+        <button type="button" onclick="closeDetails()" class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-100 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-200">Close</button>
+        <button type="button" onclick="startJourneyFromModal()" class="flex flex-[1.5] items-center justify-center gap-2 rounded-2xl bg-[#f97316] py-3.5 text-sm font-medium text-white shadow-lg shadow-[#f97316]/20 hover:bg-[#ea580c]">
+          <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+          Show Route
+            </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tour-overlay" class="pointer-events-none fixed inset-0 z-[55] hidden">
+    <div class="pointer-events-auto absolute bottom-0 left-0 right-0 z-10 flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl border-t border-slate-200/80 bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] transition-transform duration-300 md:bottom-4 md:left-4 md:right-auto md:top-4 md:w-[420px] md:max-h-none md:rounded-2xl md:border md:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.1)]">
+      <div class="flex w-full justify-center bg-slate-50 pb-1 pt-3 md:hidden">
+        <div class="h-1.5 w-12 rounded-full bg-slate-200"></div>
+      </div>
+      <div class="shrink-0 border-b border-slate-100 bg-slate-50/80 px-6 py-4 backdrop-blur-sm">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="mb-1 flex items-center gap-1.5">
+              <span class="text-xs font-semibold tracking-widest text-slate-400 uppercase">MONUMENT</span>
+              <div class="h-1 w-1 rounded-full bg-slate-300"></div>
+              <span class="text-xs font-medium tracking-wide text-blue-500">Live Tour</span>
+            </div>
+            <h2 id="tour-monument-title" class="text-2xl font-semibold tracking-tight text-slate-900">India Gate</h2>
+          </div>
+          <button type="button" id="tour-close" class="hidden mt-1 h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-900">
+            <iconify-icon icon="solar:close-linear" stroke-width="2" class="text-lg"></iconify-icon>
+          </button>
+        </div>
+      </div>
+      <div id="tour-progress-wrap" class="shrink-0 border-b border-slate-100 bg-white px-6 py-4">
+        <div class="mb-2.5 flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-500">Checkpoints Discovered</span>
+          <span id="tour-progress-label" class="text-xs font-semibold tracking-wide text-emerald-600">0 / 4</span>
+        </div>
+        <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div id="tour-progress-bar" class="h-full w-[25%] rounded-full bg-emerald-500 transition-all duration-1000"></div>
+        </div>
+      </div>
+      <div id="tour-checkpoints-list" class="metro-scroll flex-1 space-y-4 overflow-y-auto bg-slate-50/30 px-6 py-5"></div>
+    </div>
+  </div>
+
+  <div id="checkpoint-modal" class="fixed inset-0 z-[75] hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+    <div class="flex w-full max-w-xl max-h-[95vh] flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-slate-900/5">
+      <div class="relative h-56 shrink-0 overflow-hidden bg-slate-900 sm:h-64">
+        <img id="cp-modal-hero-img" src="" class="absolute inset-0 h-full w-full object-cover opacity-80" alt="">
+        <video id="cp-modal-video" class="absolute inset-0 h-full w-full object-cover hidden" controls playsinline preload="metadata"></video>
+        <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/15 to-transparent"></div>
+        <button type="button" id="cp-modal-close" class="hidden absolute right-4 top-4 h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md">
+          <iconify-icon icon="solar:close-linear" class="text-xl"></iconify-icon>
+            </button>
+      </div>
+      <div class="no-scrollbar flex-1 overflow-y-auto p-6 sm:p-8">
+        <p id="cp-modal-label" class="text-xs font-semibold tracking-widest text-slate-400"></p>
+        <h2 id="cp-modal-title" class="mt-2 text-3xl font-semibold tracking-tight text-slate-900"></h2>
+        <p id="cp-modal-desc" class="mt-4 text-sm leading-relaxed text-slate-600"></p>
+        <div class="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <h3 class="text-sm font-semibold text-slate-900">Key information</h3>
+          <ul id="cp-key-info-list" class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700"></ul>
+        </div>
+        <div class="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <h3 class="text-sm font-semibold text-slate-900">About</h3>
+          <div id="cp-about-html" class="mt-3 space-y-3 text-sm leading-relaxed text-slate-700"></div>
+        </div>
+        <div id="cp-modal-qr-wrap" class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-slate-700">
+              <iconify-icon icon="solar:qr-code-linear" class="text-xl"></iconify-icon>
+              <span class="text-sm font-medium">Checkpoint QR</span>
+            </div>
+            <span id="cp-modal-qr-code" class="rounded-lg bg-white px-2 py-1 text-[11px] font-semibold tracking-wide text-slate-500 ring-1 ring-slate-200">-</span>
+          </div>
+          <div class="mt-3 flex justify-center">
+            <img id="cp-modal-qr-img" alt="Checkpoint QR code" class="h-28 w-28 rounded-lg border border-slate-200 bg-white p-1" src="">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="metro-overlay" class="fixed inset-0 z-[60] hidden bg-[#f8fafc]">
+    <button type="button" id="metro-close" class="absolute right-4 top-4 z-[70] flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">✕</button>
+    <div class="absolute inset-0 z-0 pointer-events-none opacity-60">
+      <svg class="h-full w-full" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+        <defs>
+          <pattern id="metroGridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
+            <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e2e8f0" stroke-width="0.5"></path>
+          </pattern>
+          <linearGradient id="metroRouteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#3b82f6"></stop>
+            <stop offset="50%" stop-color="#6366f1"></stop>
+            <stop offset="100%" stop-color="#ef4444"></stop>
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#metroGridPattern)"></rect>
+        <path d="M-50 200 C 150 200, 300 100, 500 150 S 800 300, 1200 250" fill="none" stroke="#f1f5f9" stroke-width="24" stroke-linecap="round"></path>
+        <path d="M300 -50 C 300 150, 450 300, 400 600 S 500 800, 450 1000" fill="none" stroke="#f1f5f9" stroke-width="18" stroke-linecap="round"></path>
+        <path d="M 180 180 C 220 180, 280 250, 280 320 C 280 400, 240 450, 240 500 C 240 580, 300 650, 300 700" fill="none" stroke="url(#metroRouteGradient)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </div>
+    <div class="pointer-events-auto absolute top-4 left-4 right-4 z-10 md:right-auto md:w-[380px]">
+      <div class="rounded-2xl border border-slate-200/80 bg-white shadow-lg">
+        <div class="px-5 pt-4 pb-2 text-xs font-semibold tracking-widest text-slate-400">NAVSYS — METRO</div>
+        <div class="space-y-3 px-5 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="h-3 w-3 flex-shrink-0 rounded-full bg-blue-500 ring-4 ring-white shadow-sm"></div>
+            <input id="metro-origin-input" class="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm font-medium" value="">
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="h-3 w-3 flex-shrink-0 rounded-full bg-red-500 ring-4 ring-white shadow-sm"></div>
+            <input id="metro-dest-input" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm" value="">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pointer-events-auto absolute bottom-0 left-0 right-0 z-20 max-h-[82vh] overflow-y-auto rounded-t-3xl border border-slate-200/80 bg-white shadow-2xl md:bottom-4 md:left-4 md:max-h-[calc(100vh-220px)] md:w-[380px] md:rounded-2xl">
+      <div class="px-6 py-4">
+        <div class="mb-2 flex items-end justify-between">
+          <h3 class="text-4xl font-semibold tracking-tight text-emerald-600">34 <span class="text-xl font-medium">min</span></h3>
+          <div class="text-right text-sm">
+            <div class="font-medium text-slate-900">4.2 mi</div>
+            <div class="text-xs text-slate-500">Arrive around 10:45 AM</div>
+          </div>
+        </div>
+        <p id="metro-summary" class="border-b border-slate-100 pb-4 text-sm text-slate-600"></p>
+        <p class="mt-4 text-xs text-slate-400">Timeline UI from your Navsys mock — linked to Delhi multi-modal flow in chat.</p>
+      </div>
+      <div class="flex gap-3 border-t border-slate-100 bg-slate-50/80 p-4">
+        <button type="button" id="metro-clear" class="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Clear Route</button>
+        <button type="button" id="metro-start" class="flex-[2] rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800">Start Navigation</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="qr-overlay" class="fixed inset-0 z-[1500] hidden flex-col bg-black text-white">
+    <div class="absolute inset-0 z-0">
+      <img src="https://images.unsplash.com/photo-1572949645841-094f3a9c4c94?q=80&w=2574&auto=format&fit=crop" class="h-full w-full scale-105 object-cover opacity-50 blur-[2px]" alt="">
+      <video id="qr-camera-preview" class="absolute inset-0 h-full w-full object-cover hidden" autoplay playsinline muted></video>
+    </div>
+    <div class="relative z-30 flex items-start justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent p-5">
+      <button type="button" id="qr-close" class="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/80 backdrop-blur-md hover:bg-white/10">
+        <iconify-icon icon="solar:close-circle-linear" width="22" height="22" style="stroke-width: 1.5;"></iconify-icon>
+          </button>
+      <div class="flex flex-col items-center">
+        <div class="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/10 px-2.5 py-1 backdrop-blur-sm">
+          <div id="qr-status-dot" class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></div>
+          <span id="qr-status-text" class="text-xs font-medium uppercase tracking-widest text-white/70">Scanning</span>
+        </div>
+      </div>
+      <button type="button" id="qr-torch-btn" class="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/80 backdrop-blur-md hover:bg-white/10" aria-label="Toggle flashlight">
+        <iconify-icon id="qr-torch-icon" icon="solar:flashlight-linear" width="22" height="22" style="stroke-width: 1.5;"></iconify-icon>
+      </button>
+    </div>
+    <div class="relative z-10 flex flex-1 items-center justify-center pb-32">
+      <div class="relative h-64 w-64 rounded-3xl cutout-shadow-qr sm:h-72 sm:w-72">
+        <div class="absolute top-0 left-0 h-12 w-12 rounded-tl-3xl border-t-[3px] border-l-[3px] border-white/90"></div>
+        <div class="absolute top-0 right-0 h-12 w-12 rounded-tr-3xl border-t-[3px] border-r-[3px] border-white/90"></div>
+        <div class="absolute bottom-0 left-0 h-12 w-12 rounded-bl-3xl border-b-[3px] border-l-[3px] border-white/90"></div>
+        <div class="absolute bottom-0 right-0 h-12 w-12 rounded-br-3xl border-b-[3px] border-r-[3px] border-white/90"></div>
+        <div class="animate-scan-qr absolute left-4 right-4 h-[2px] rounded-full bg-white shadow-[0_0_12px_2px_rgba(255,255,255,0.6)]"></div>
+      </div>
+    </div>
+    <div class="pointer-events-auto relative z-40 hidden p-6 pt-0"></div>
+  </div>
+
+  <!-- Settings: layout from generated-page (7).html; IDs wired to travelr-combined.js -->
+  <div id="settings-overlay" class="fixed inset-0 z-[1300] hidden items-center justify-center bg-black/60 p-4 backdrop-blur-sm sm:p-6 pointer-events-auto">
+    <div class="w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 bg-[#0a0a0a]/95 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl transform transition-all">
+      <div class="flex items-center justify-between border-b border-white/5 px-5 py-4">
+        <h2 class="text-xl font-semibold tracking-tight text-white/95">Settings</h2>
+        <button type="button" id="settings-close" onclick="closeSettings()" class="flex h-8 w-8 items-center justify-center rounded-full border border-white/5 bg-white/5 text-white/60 transition-all hover:bg-white/10 hover:text-white" aria-label="Close settings">
+          <iconify-icon icon="solar:close-circle-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+        </button>
+      </div>
+      <div class="flex flex-col gap-1 p-2 sm:p-3">
+        <div class="group flex items-center justify-between rounded-2xl p-3 transition-colors hover:bg-white/5">
+          <div class="flex items-center gap-3.5">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/5 text-white/70 transition-colors group-hover:text-white">
+              <iconify-icon icon="solar:volume-loud-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+            </div>
+            <div>
+              <div class="text-sm font-medium text-white/90">Voice Narration</div>
+              <div class="mt-0.5 text-xs text-white/50">Auto-play audio guides</div>
+            </div>
+          </div>
+          <label class="relative inline-flex shrink-0 cursor-pointer items-center">
+            <input id="settings-voice" type="checkbox" class="peer sr-only">
+            <div class="h-6 w-11 rounded-full border border-transparent bg-white/10 transition-colors duration-300 peer-checked:border-white peer-checked:bg-white"></div>
+            <div class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 peer-checked:translate-x-5 peer-checked:bg-[#0a0a0a]"></div>
+          </label>
+        </div>
+        <div class="group flex items-center justify-between rounded-2xl p-3 transition-colors hover:bg-white/5">
+          <div class="flex items-center gap-3.5">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/5 text-white/70 transition-colors group-hover:text-white">
+              <iconify-icon icon="solar:cursor-square-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+            </div>
+            <div>
+              <div class="text-sm font-medium text-white/90">Cursor Mode</div>
+              <div class="mt-0.5 text-xs text-white/50">Enable precise selection</div>
+            </div>
+          </div>
+          <label class="relative inline-flex shrink-0 cursor-pointer items-center">
+            <input id="settings-cursor" type="checkbox" class="peer sr-only">
+            <div class="h-6 w-11 rounded-full border border-transparent bg-white/10 transition-colors duration-300 peer-checked:border-white peer-checked:bg-white"></div>
+            <div class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white/70 shadow-sm transition-transform duration-300 peer-checked:translate-x-5 peer-checked:bg-[#0a0a0a]"></div>
+          </label>
+        </div>
+        <div class="group flex items-center justify-between rounded-2xl p-3 transition-colors hover:bg-white/5">
+          <div class="flex items-center gap-3.5">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/5 text-white/70 transition-colors group-hover:text-white">
+              <iconify-icon icon="solar:map-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+            </div>
+            <div>
+              <div class="text-sm font-medium text-white/90">Satellite Map</div>
+              <div class="mt-0.5 text-xs text-white/50">Default map or satellite imagery</div>
+            </div>
+          </div>
+          <label class="relative inline-flex shrink-0 cursor-pointer items-center">
+            <input id="settings-satellite" type="checkbox" class="peer sr-only">
+            <div class="h-6 w-11 rounded-full border border-transparent bg-white/10 transition-colors duration-300 peer-checked:border-white peer-checked:bg-white"></div>
+            <div class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 peer-checked:translate-x-5 peer-checked:bg-[#0a0a0a]"></div>
+          </label>
+        </div>
+        <div class="group flex items-center justify-between rounded-2xl p-3 transition-colors hover:bg-white/5">
+          <div class="flex items-center gap-3.5">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/5 text-white/70 transition-colors group-hover:text-white">
+              <iconify-icon icon="solar:moon-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+            </div>
+            <div>
+              <div class="text-sm font-medium text-white/90">Dark Mode</div>
+              <div class="mt-0.5 text-xs text-white/50">Use dark appearance on this browser</div>
+            </div>
+          </div>
+          <label class="relative inline-flex shrink-0 cursor-pointer items-center">
+            <input id="settings-dark" type="checkbox" class="peer sr-only">
+            <div class="h-6 w-11 rounded-full border border-transparent bg-white/10 transition-colors duration-300 peer-checked:border-white peer-checked:bg-white"></div>
+            <div class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 peer-checked:translate-x-5 peer-checked:bg-[#0a0a0a]"></div>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="home-overlay" class="fixed inset-0 z-[90] overflow-y-auto overflow-x-hidden bg-slate-50 text-slate-800 antialiased selection:bg-orange-200 selection:text-orange-900 transition-opacity duration-300" style="font-family: 'Inter', sans-serif;">
+    <!-- Navigation -->
+      <nav class="fixed top-0 w-full z-[91] transition-all duration-300 bg-white/60 backdrop-blur-lg border-b border-white/20">
+          <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+              <div class="text-xl font-semibold tracking-widest text-slate-900 uppercase" style="letter-spacing: 0.2em;">
+                  Safar
+              </div>
+              <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                  <a href="#features" class="hover:text-slate-900 transition-colors">Features</a>
+                  <a href="#destinations" class="hover:text-slate-900 transition-colors">Destinations</a>
+                  <a href="#how-it-works" class="hover:text-slate-900 transition-colors">How it works</a>
+            </div>
+              <button type="button" id="home-open-map" class="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-medium hover:bg-slate-800 transition-all shadow-md shadow-slate-900/10 hover:shadow-lg hover:shadow-slate-900/20">
+                  Get the App
+              </button>
+            </div>
+      </nav>
+
+      <!-- Hero Section -->
+      <section class="relative min-h-[100svh] flex items-center justify-center pt-20">
+          <!-- Background Image -->
+          <div class="absolute inset-0 z-0">
+              <img src="https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&amp;w=2071&amp;auto=format&amp;fit=crop" alt="Scenic Background" class="w-full h-full object-cover object-center">
+          </div>
+          <!-- Gradient Overlays -->
+          <div class="absolute inset-0 z-0 bg-gradient-to-b from-black/20 via-black/40 to-slate-900/90"></div>
+          <div class="absolute inset-0 z-0 bg-gradient-to-tr from-blue-900/30 via-transparent to-orange-500/20 mix-blend-overlay"></div>
+
+          <div class="relative z-10 flex flex-col items-center text-center px-6 max-w-4xl mt-12">
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-xs font-medium mb-8">
+                  <iconify-icon icon="solar:star-fall-linear"></iconify-icon>
+                  <span>New AI Navigation 2.0</span>
+              </div>
+            
+              <h1 class="text-5xl md:text-7xl font-semibold text-white tracking-tight mb-6 leading-tight" style="font-family: 'Playfair Display', serif; text-wrap: balance;">
+                  Explore the World <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-200 to-rose-200">Around You</span>
+              </h1>
+            
+              <p class="text-base md:text-lg text-white/80 max-w-2xl font-light leading-relaxed mb-10">
+                  Discover hidden places, ancient stories, and curated journeys with your personal AI travel guide. Redefine how you experience the world.
+              </p>
+            
+              <div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                  <button type="button" id="home-start" class="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 text-white text-sm font-medium hover:scale-105 hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300">
+                      Start Exploring
+                  </button>
+            </div>
+          </div>
+        
+          <!-- Scroll indicator -->
+          <div class="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50 animate-bounce">
+              <iconify-icon icon="solar:arrow-down-linear" class="text-2xl"></iconify-icon>
+          </div>
+      </section>
+
+      <!-- Features Section -->
+      <section id="features" class="py-24 md:py-32 px-6 relative z-20 -mt-8">
+          <div class="max-w-7xl mx-auto">
+              <div class="text-center mb-16">
+                  <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900 mb-4" style="font-family: 'Playfair Display', serif;">Intelligent Travel</h2>
+                  <p class="text-slate-500 text-sm md:text-base max-w-xl mx-auto font-light">Experience destinations like never before with cutting-edge tools designed for the modern explorer.</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <!-- Card 1 -->
+                  <div class="group bg-white/80 backdrop-blur-xl border border-white shadow-xl shadow-slate-200/40 rounded-3xl p-8 hover:-translate-y-1 hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500 cursor-default">
+                      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-rose-50 flex items-center justify-center text-orange-600 mb-6 group-hover:scale-110 transition-transform duration-500">
+                          <iconify-icon icon="solar:magic-stick-3-linear" class="text-2xl" style="stroke-width: 1.5;"></iconify-icon>
+                      </div>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Smart AI Guide</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed">Context-aware suggestions and historical facts delivered instantly as you walk.</p>
+                  </div>
+
+                  <!-- Card 2 -->
+                  <div class="group bg-white/80 backdrop-blur-xl border border-white shadow-xl shadow-slate-200/40 rounded-3xl p-8 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-default">
+                      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-50 flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-500">
+                          <iconify-icon icon="solar:map-linear" class="text-2xl" style="stroke-width: 1.5;"></iconify-icon>
+                      </div>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Interactive Maps</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed">Beautifully crafted 3D maps highlighting points of interest and hidden gems.</p>
+                  </div>
+
+                  <!-- Card 3 -->
+                  <div class="group bg-white/80 backdrop-blur-xl border border-white shadow-xl shadow-slate-200/40 rounded-3xl p-8 hover:-translate-y-1 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 cursor-default">
+                      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-50 flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 transition-transform duration-500">
+                          <iconify-icon icon="solar:buildings-linear" class="text-2xl" style="stroke-width: 1.5;"></iconify-icon>
+                      </div>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Monument Mode</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed">Point your camera at any landmark to instantly uncover its rich history.</p>
+                  </div>
+
+                  <!-- Card 4 -->
+                  <div class="group bg-white/80 backdrop-blur-xl border border-white shadow-xl shadow-slate-200/40 rounded-3xl p-8 hover:-translate-y-1 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 cursor-default">
+                      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-100 to-fuchsia-50 flex items-center justify-center text-purple-600 mb-6 group-hover:scale-110 transition-transform duration-500">
+                          <iconify-icon icon="solar:video-frame-linear" class="text-2xl" style="stroke-width: 1.5;"></iconify-icon>
+                      </div>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Visual Interaction</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed">Watch short videos and read clear textual details for each monument stop.</p>
+                  </div>
+              </div>
+          </div>
+        </section>
+
+      <!-- Popular Destinations Section -->
+      <section id="destinations" class="py-24 bg-white border-y border-slate-100 overflow-visible">
+          <div class="max-w-7xl mx-auto px-6 mb-12 flex justify-between items-end">
+              <div>
+                  <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900 mb-2" style="font-family: 'Playfair Display', serif;">Popular Destinations</h2>
+                  <p class="text-slate-500 text-sm font-light">Explore iconic landmarks curated for your next journey.</p>
+              </div>
+              <div class="hidden md:flex gap-2">
+                  <button id="destinations-prev" type="button" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-colors">
+                      <iconify-icon icon="solar:arrow-left-linear" class="text-lg"></iconify-icon>
+                  </button>
+                  <button id="destinations-next" type="button" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-colors">
+                      <iconify-icon icon="solar:arrow-right-linear" class="text-lg"></iconify-icon>
+                  </button>
+              </div>
+          </div>
+
+          <div id="destinations-scroller" class="flex items-start overflow-x-auto overflow-y-visible snap-x snap-mandatory pt-10 pb-10 px-6 max-w-7xl mx-auto gap-6" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Destination 1 -->
+              <div class="destination-flip-card snap-start shrink-0 relative w-72 md:w-96 aspect-[3/4] rounded-3xl">
+                  <div class="destination-flip-inner">
+                      <div class="destination-face destination-face-front group">
+                          <img src="india gate/INDIA GATE.jpg" alt="India Gate" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
+                          <div class="absolute bottom-0 left-0 p-8 w-full">
+                              <div class="flex justify-between items-end">
+                                  <div>
+                                      <span class="text-orange-300 text-xs font-medium tracking-wider uppercase mb-2 block">New Delhi</span>
+                                      <h3 class="text-2xl font-semibold text-white tracking-tight" style="font-family: 'Playfair Display', serif;">India Gate</h3>
+                                  </div>
+                                  <button type="button" class="destination-flip-btn w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition-all duration-300 hover:bg-white/30" aria-label="Flip card">
+                                      <iconify-icon icon="solar:arrow-right-up-linear"></iconify-icon>
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="destination-face destination-face-back bg-slate-900 p-7 text-white">
+                          <div class="h-full flex flex-col">
+                              <span class="text-orange-300 text-xs font-medium tracking-wider uppercase">New Delhi</span>
+                              <h3 class="mt-2 text-3xl font-semibold tracking-tight" style="font-family: 'Playfair Display', serif;">India Gate</h3>
+                              <p class="mt-4 text-sm leading-relaxed text-slate-200">A 42-meter war memorial arch and one of Delhi's most iconic landmarks, dedicated to Indian soldiers and known for its evening cityscape ambiance.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Destination 2 -->
+              <div class="destination-flip-card snap-start shrink-0 relative w-72 md:w-96 aspect-[3/4] rounded-3xl">
+                  <div class="destination-flip-inner">
+                      <div class="destination-face destination-face-front group">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/0/0d/Red_Fort_in_Delhi_03-2016_img3.jpg" alt="Red Fort" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
+                          <div class="absolute bottom-0 left-0 p-8 w-full">
+                              <div class="flex justify-between items-end">
+                                  <div>
+                                      <span class="text-orange-300 text-xs font-medium tracking-wider uppercase mb-2 block">New Delhi</span>
+                                      <h3 class="text-2xl font-semibold text-white tracking-tight" style="font-family: 'Playfair Display', serif;">Red Fort</h3>
+                                  </div>
+                                  <button type="button" class="destination-flip-btn w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition-all duration-300 hover:bg-white/30" aria-label="Flip card">
+                                      <iconify-icon icon="solar:arrow-right-up-linear"></iconify-icon>
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="destination-face destination-face-back bg-slate-900 p-7 text-white">
+                          <div class="h-full flex flex-col">
+                              <span class="text-orange-300 text-xs font-medium tracking-wider uppercase">New Delhi</span>
+                              <h3 class="mt-2 text-3xl font-semibold tracking-tight" style="font-family: 'Playfair Display', serif;">Red Fort</h3>
+                              <p class="mt-4 text-sm leading-relaxed text-slate-200">UNESCO World Heritage Site built by Shah Jahan, famous for red sandstone walls and the annual Independence Day address from its ramparts.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Destination 3 -->
+              <div class="destination-flip-card snap-start shrink-0 relative w-72 md:w-96 aspect-[3/4] rounded-3xl">
+                  <div class="destination-flip-inner">
+                      <div class="destination-face destination-face-front group">
+                          <img src="https://images.unsplash.com/photo-1548013146-72479768bada?q=80&amp;w=2076&amp;auto=format&amp;fit=crop" alt="Taj Mahal" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
+                          <div class="absolute bottom-0 left-0 p-8 w-full">
+                              <div class="flex justify-between items-end">
+                                  <div>
+                                      <span class="text-orange-300 text-xs font-medium tracking-wider uppercase mb-2 block">Agra</span>
+                                      <h3 class="text-2xl font-semibold text-white tracking-tight" style="font-family: 'Playfair Display', serif;">Taj Mahal</h3>
+                                  </div>
+                                  <button type="button" class="destination-flip-btn w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition-all duration-300 hover:bg-white/30" aria-label="Flip card">
+                                      <iconify-icon icon="solar:arrow-right-up-linear"></iconify-icon>
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="destination-face destination-face-back bg-slate-900 p-7 text-white">
+                          <div class="h-full flex flex-col">
+                              <span class="text-orange-300 text-xs font-medium tracking-wider uppercase">Agra</span>
+                              <h3 class="mt-2 text-3xl font-semibold tracking-tight" style="font-family: 'Playfair Display', serif;">Taj Mahal</h3>
+                              <p class="mt-4 text-sm leading-relaxed text-slate-200">A marble masterpiece and global symbol of love, this UNESCO site combines Persian and Mughal architecture with beautiful sunrise and sunset views.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Destination 4 -->
+              <div class="destination-flip-card snap-start shrink-0 relative w-72 md:w-96 aspect-[3/4] rounded-3xl">
+                  <div class="destination-flip-inner">
+                      <div class="destination-face destination-face-front group">
+                          <img src="https://images.unsplash.com/photo-1477587458883-47145ed94245?q=80&amp;w=2070&amp;auto=format&amp;fit=crop" alt="Hawa Mahal" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
+                          <div class="absolute bottom-0 left-0 p-8 w-full">
+                              <div class="flex justify-between items-end">
+                                  <div>
+                                      <span class="text-orange-300 text-xs font-medium tracking-wider uppercase mb-2 block">Jaipur</span>
+                                      <h3 class="text-2xl font-semibold text-white tracking-tight" style="font-family: 'Playfair Display', serif;">Hawa Mahal</h3>
+                                  </div>
+                                  <button type="button" class="destination-flip-btn w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition-all duration-300 hover:bg-white/30" aria-label="Flip card">
+                                      <iconify-icon icon="solar:arrow-right-up-linear"></iconify-icon>
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="destination-face destination-face-back bg-slate-900 p-7 text-white">
+                          <div class="h-full flex flex-col">
+                              <span class="text-orange-300 text-xs font-medium tracking-wider uppercase">Jaipur</span>
+                              <h3 class="mt-2 text-3xl font-semibold tracking-tight" style="font-family: 'Playfair Display', serif;">Hawa Mahal</h3>
+                              <p class="mt-4 text-sm leading-relaxed text-slate-200">The Palace of Winds is known for its honeycomb facade and 953 windows, designed for royal women to observe street life while staying unseen.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+            
+              <!-- Spacer for scrolling -->
+              <div class="snap-start shrink-0 w-6"></div>
+          </div>
+      </section>
+
+      <!-- How It Works Section -->
+      <section id="how-it-works" class="py-24 md:py-32 px-6">
+          <div class="max-w-7xl mx-auto">
+              <div class="text-center mb-20">
+                  <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900 mb-4" style="font-family: 'Playfair Display', serif;">Your Journey Simplified</h2>
+                  <p class="text-slate-500 text-sm md:text-base max-w-xl mx-auto font-light">From inspiration to immersion in four seamless steps.</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
+                  <!-- Connecting Line (Desktop) -->
+                  <div class="hidden md:block absolute top-12 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent z-0"></div>
+
+                  <!-- Step 1 -->
+                  <div class="relative z-10 flex flex-col items-center text-center group">
+                      <div class="w-24 h-24 rounded-full bg-white shadow-xl shadow-slate-200/50 border border-slate-50 flex items-center justify-center mb-6 text-slate-400 group-hover:text-orange-500 group-hover:scale-105 transition-all duration-300">
+                          <iconify-icon icon="solar:smartphone-linear" class="text-4xl"></iconify-icon>
+                      </div>
+                      <span class="text-xs font-medium text-orange-500 tracking-wider uppercase mb-2">Step 01</span>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Open App</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed max-w-[200px]">Launch Safar and set your current location or destination.</p>
+                  </div>
+
+                  <!-- Step 2 -->
+                  <div class="relative z-10 flex flex-col items-center text-center group">
+                      <div class="w-24 h-24 rounded-full bg-white shadow-xl shadow-slate-200/50 border border-slate-50 flex items-center justify-center mb-6 text-slate-400 group-hover:text-blue-500 group-hover:scale-105 transition-all duration-300">
+                          <iconify-icon icon="solar:rounded-magnifer-linear" class="text-4xl"></iconify-icon>
+                      </div>
+                      <span class="text-xs font-medium text-blue-500 tracking-wider uppercase mb-2">Step 02</span>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Explore</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed max-w-[200px]">Browse AI-curated spots tailored to your personal interests.</p>
+                  </div>
+
+                  <!-- Step 3 -->
+                  <div class="relative z-10 flex flex-col items-center text-center group">
+                      <div class="w-24 h-24 rounded-full bg-white shadow-xl shadow-slate-200/50 border border-slate-50 flex items-center justify-center mb-6 text-slate-400 group-hover:text-emerald-500 group-hover:scale-105 transition-all duration-300">
+                          <iconify-icon icon="solar:routing-2-linear" class="text-4xl"></iconify-icon>
+                      </div>
+                      <span class="text-xs font-medium text-emerald-500 tracking-wider uppercase mb-2">Step 03</span>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Navigate</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed max-w-[200px]">Follow beautiful 3D paths to your selected monuments.</p>
+                  </div>
+
+                  <!-- Step 4 -->
+                  <div class="relative z-10 flex flex-col items-center text-center group">
+                      <div class="w-24 h-24 rounded-full bg-white shadow-xl shadow-slate-200/50 border border-slate-50 flex items-center justify-center mb-6 text-slate-400 group-hover:text-purple-500 group-hover:scale-105 transition-all duration-300">
+                          <iconify-icon icon="solar:camera-minimalistic-linear" class="text-4xl"></iconify-icon>
+                      </div>
+                      <span class="text-xs font-medium text-purple-500 tracking-wider uppercase mb-2">Step 04</span>
+                      <h3 class="text-lg font-semibold text-slate-900 mb-2 tracking-tight">Experience</h3>
+                      <p class="text-slate-500 text-sm font-light leading-relaxed max-w-[200px]">Point your camera and listen to stories come alive.</p>
+        </div>
+            </div>
+          </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="bg-white border-t border-slate-100 pt-16 pb-8">
+          <div class="max-w-7xl mx-auto px-6">
+              <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
+                  <div>
+                      <div class="text-2xl font-semibold tracking-widest text-slate-900 uppercase mb-4" style="letter-spacing: 0.2em;">
+                          Safar
+                      </div>
+                      <p class="text-slate-500 text-sm font-light max-w-xs">Elevating travel through intelligent design and immersive technology.</p>
+                  </div>
+                
+                  <div class="flex gap-8 text-sm text-slate-500">
+                      <div class="flex flex-col gap-3">
+                          <a href="#" class="hover:text-slate-900 transition-colors">Product</a>
+                          <a href="#" class="hover:text-slate-900 transition-colors">Destinations</a>
+                          <a href="#" class="hover:text-slate-900 transition-colors">Pricing</a>
+                      </div>
+                      <div class="flex flex-col gap-3">
+                          <a href="#" class="hover:text-slate-900 transition-colors">Company</a>
+                          <a href="#" class="hover:text-slate-900 transition-colors">About Us</a>
+                          <a href="#" class="hover:text-slate-900 transition-colors">Careers</a>
+                      </div>
+                      <div class="flex flex-col gap-3">
+                          <a href="#" class="hover:text-slate-900 transition-colors">Legal</a>
+                          <a href="#" class="hover:text-slate-900 transition-colors">Privacy</a>
+                          <a href="#" class="hover:text-slate-900 transition-colors">Terms</a>
+        </div>
+      </div>
+    </div>
+
+          </div>
+      </footer>
+  </section>
+
+    <script src="monument-internal.js"></script>
+  <script src="travelr-combined.js"></script>
+  </body>
+</html>

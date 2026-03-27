@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delhi Monuments | 3D Models</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'Poppins', sans-serif; }
+    #info-panel {
+      position: absolute; top: 20px; left: 20px; color: white;
+      background: linear-gradient(135deg, rgba(80,40,20,0.95), rgba(40,20,10,0.95));
+      padding: 20px 28px; border-radius: 15px; backdrop-filter: blur(10px); z-index: 100;
+      border-left: 6px solid #c45c2a; max-width: 340px; pointer-events: none;
+    }
+    #info-panel h1 { margin: 0; font-size: 24px; font-weight: 700; color: #fff; }
+    #info-panel .subtitle { margin: 6px 0 12px; font-size: 14px; opacity: 0.9; }
+    #coordinates {
+      position: absolute; bottom: 20px; left: 20px; color: white;
+      background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 30px; z-index: 100;
+      font-size: 12px; font-family: monospace; border: 1px solid #c45c2a;
+    }
+    #controls {
+      position: absolute; bottom: 20px; right: 20px; color: white;
+      background: rgba(0,0,0,0.7); padding: 12px 20px; border-radius: 40px; z-index: 100;
+      display: flex; gap: 12px; border: 1px solid rgba(255,255,255,0.2);
+    }
+    .control-btn {
+      background: transparent; border: 1px solid #c45c2a; color: white;
+      padding: 8px 18px; border-radius: 30px; cursor: pointer; font-size: 14px; font-weight: 600;
+      transition: all 0.3s;
+    }
+    .control-btn:hover { background: #c45c2a; color: #000; transform: translateY(-2px); }
+    #loading {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      color: white; background: rgba(80,40,20,0.95); padding: 30px 50px; border-radius: 20px;
+      z-index: 1000; font-size: 18px; border: 2px solid #c45c2a; text-align: center; backdrop-filter: blur(10px);
+    }
+    #loading .spinner {
+      width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2);
+      border-top: 4px solid #c45c2a; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    body.embed-mode #info-panel,
+    body.embed-mode #coordinates,
+    body.embed-mode #controls,
+    body.embed-mode #loading { display: none !important; }
+  </style>
+</head>
+<body>
+  <script>
+    (function() {
+      var inIframe = window.self !== window.top;
+      var params = new URLSearchParams(window.location.search);
+      if (inIframe || params.get('embed') === '1') document.body.classList.add('embed-mode');
+    })();
+  </script>
+  <div id="info-panel">
+    <h1 id="monumentTitle">Delhi Monument</h1>
+    <div class="subtitle" id="monumentSubtitle">3D model</div>
+  </div>
+  <div id="coordinates">📍 Delhi, India</div>
+  <div id="controls">
+    <button class="control-btn" id="dayBtn">☀️ Day</button>
+    <button class="control-btn" id="eveningBtn">🌆 Evening</button>
+    <button class="control-btn" id="nightBtn">🌙 Night</button>
+    <button class="control-btn" id="resetView">🔄 Reset</button>
+  </div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <span id="loadingText">Loading 3D model…</span>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const monumentId = params.get('monument') || 'red_fort';
+
+    const MONUMENT_CONFIG = {
+      red_fort: {
+        name: "Red Fort (Lal Qila)",
+        subtitle: "UNESCO • Mughal fort, Old Delhi",
+        build(scene) {
+          const red = 0xb84a2a, sand = 0xd4a574;
+          const wallMat = new THREE.MeshStandardMaterial({ color: red, roughness: 0.85 });
+          const domeMat = new THREE.MeshStandardMaterial({ color: red, roughness: 0.7 });
+          const gateMat = new THREE.MeshStandardMaterial({ color: sand, roughness: 0.8 });
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(45, 18, 35), wallMat);
+          wall.position.y = 9; wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
+          const domeGeo = new THREE.SphereGeometry(6, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+          const dome1 = new THREE.Mesh(domeGeo, domeMat);
+          dome1.position.set(-12, 21, 0); dome1.castShadow = true; scene.add(dome1);
+          const dome2 = new THREE.Mesh(domeGeo.clone(), domeMat);
+          dome2.position.set(12, 21, 0); dome2.castShadow = true; scene.add(dome2);
+          const gate = new THREE.Mesh(new THREE.BoxGeometry(12, 14, 4), gateMat);
+          gate.position.set(0, 7, 19.5); gate.castShadow = true; scene.add(gate);
+          const arch = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 4, 16, 1, true, 0, Math.PI), gateMat);
+          arch.rotation.x = Math.PI / 2; arch.position.set(0, 7, 21.5); scene.add(arch);
+        }
+      },
+      india_gate: {
+        name: "India Gate",
+        subtitle: "War memorial • Rajpath",
+        build(scene) {
+          const stone = 0xe8e0d8, dark = 0x4a4a4a;
+          const base = new THREE.Mesh(
+            new THREE.BoxGeometry(28, 4, 14),
+            new THREE.MeshStandardMaterial({ color: stone, roughness: 0.8 })
+          );
+          base.position.y = 2; base.receiveShadow = true; scene.add(base);
+          const arch = new THREE.Mesh(
+            new THREE.BoxGeometry(12, 38, 6),
+            new THREE.MeshStandardMaterial({ color: stone, roughness: 0.75 })
+          );
+          arch.position.y = 23; arch.castShadow = true; scene.add(arch);
+          const top = new THREE.Mesh(
+            new THREE.BoxGeometry(16, 3, 8),
+            new THREE.MeshStandardMaterial({ color: dark })
+          );
+          top.position.y = 41.5; top.castShadow = true; scene.add(top);
+        }
+      },
+      qutub_minar: {
+        name: "Qutub Minar",
+        subtitle: "73 m minaret • UNESCO, Mehrauli",
+        build(scene) {
+          const sand = 0xc49a6c, dark = 0x8b6914;
+          const mat = new THREE.MeshStandardMaterial({ color: sand, roughness: 0.8 });
+          const segments = [8, 7, 6.5, 6, 5];
+          let y = 0;
+          segments.forEach((r, i) => {
+            const h = 14 + i * 2;
+            const cyl = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, h, 12), mat);
+            cyl.position.y = y + h / 2; y += h; cyl.castShadow = true; scene.add(cyl);
+          });
+          const cone = new THREE.Mesh(
+            new THREE.ConeGeometry(3, 8, 12),
+            new THREE.MeshStandardMaterial({ color: dark, roughness: 0.6 })
+          );
+          cone.position.y = y + 4; cone.castShadow = true; scene.add(cone);
+        }
+      },
+      humayun_tomb: {
+        name: "Humayun's Tomb",
+        subtitle: "UNESCO • Mughal garden tomb",
+        build(scene) {
+          const red = 0xb85a3a, white = 0xf5f0e8;
+          const baseMat = new THREE.MeshStandardMaterial({ color: red, roughness: 0.85 });
+          const domeMat = new THREE.MeshStandardMaterial({ color: white, roughness: 0.5 });
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(18, 20, 4, 8), baseMat);
+          base.position.y = 2; base.receiveShadow = true; scene.add(base);
+          const main = new THREE.Mesh(new THREE.BoxGeometry(22, 14, 22), baseMat);
+          main.position.y = 11; main.castShadow = true; scene.add(main);
+          const dome = new THREE.Mesh(
+            new THREE.SphereGeometry(10, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+            domeMat
+          );
+          dome.position.y = 26; dome.castShadow = true; scene.add(dome);
+        }
+      },
+      lotus_temple: {
+        name: "Lotus Temple",
+        subtitle: "Bahá'í House of Worship",
+        build(scene) {
+          const white = 0xfffef8;
+          const mat = new THREE.MeshStandardMaterial({ color: white, roughness: 0.35, metalness: 0.05 });
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(20, 22, 1.5, 24), mat);
+          base.position.y = 0.75; base.receiveShadow = true; scene.add(base);
+          const center = new THREE.Mesh(new THREE.SphereGeometry(8, 32, 24), mat);
+          center.position.y = 10; center.castShadow = true; scene.add(center);
+          for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2;
+            const petal = new THREE.Mesh(
+              new THREE.SphereGeometry(6, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+              mat
+            );
+            petal.position.set(Math.cos(a) * 14, 6, Math.sin(a) * 14);
+            petal.rotation.y = -a;
+            petal.castShadow = true;
+            scene.add(petal);
+          }
+        }
+      },
+      akshardham: {
+        name: "Akshardham Temple",
+        subtitle: "Swaminarayan • East Delhi",
+        build(scene) {
+          const sand = 0xe8c898, white = 0xf8f4e8, gold = 0xd4a84b;
+          const base = new THREE.Mesh(
+            new THREE.BoxGeometry(35, 4, 28),
+            new THREE.MeshStandardMaterial({ color: sand, roughness: 0.8 })
+          );
+          base.position.y = 2; base.receiveShadow = true; scene.add(base);
+          const mandir = new THREE.Mesh(
+            new THREE.BoxGeometry(20, 22, 16),
+            new THREE.MeshStandardMaterial({ color: white, roughness: 0.6 })
+          );
+          mandir.position.y = 13; mandir.castShadow = true; scene.add(mandir);
+          const tiers = [6, 5, 4, 3];
+          tiers.forEach((r, i) => {
+            const h = 4;
+            const tier = new THREE.Mesh(
+              new THREE.CylinderGeometry(r, r * 1.1, h, 8),
+              new THREE.MeshStandardMaterial({ color: gold, roughness: 0.5 })
+            );
+            tier.position.y = 24 + i * 4 + 2;
+            tier.castShadow = true;
+            scene.add(tier);
+          });
+        }
+      },
+      jama_masjid: {
+        name: "Jama Masjid",
+        subtitle: "India's largest mosque • Old Delhi",
+        build(scene) {
+          const sand = 0xc9a86c, red = 0x9a4a2a;
+          const wallMat = new THREE.MeshStandardMaterial({ color: sand, roughness: 0.85 });
+          const domeMat = new THREE.MeshStandardMaterial({ color: red, roughness: 0.7 });
+          const base = new THREE.Mesh(new THREE.BoxGeometry(50, 3, 45), wallMat);
+          base.position.y = 1.5; base.receiveShadow = true; scene.add(base);
+          const main = new THREE.Mesh(new THREE.BoxGeometry(35, 18, 30), wallMat);
+          main.position.y = 12; main.castShadow = true; scene.add(main);
+          [0, -10, 10].forEach((z, i) => {
+            const dome = new THREE.Mesh(
+              new THREE.SphereGeometry(6 + (i === 0 ? 2 : 0), 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+              domeMat
+            );
+            dome.position.set(0, 21 + (i === 0 ? 2 : 0), z);
+            dome.castShadow = true;
+            scene.add(dome);
+          });
+          const minar = new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 2.5, 38, 8),
+            new THREE.MeshStandardMaterial({ color: sand, roughness: 0.8 })
+          );
+          minar.position.set(-22, 22, 0); minar.castShadow = true; scene.add(minar);
+          const minar2 = minar.clone(); minar2.position.set(22, 22, 0); scene.add(minar2);
+        }
+      },
+      rashtrapati_bhavan: {
+        name: "Rashtrapati Bhavan",
+        subtitle: "President's residence • Rajpath",
+        build(scene) {
+          const sand = 0xd4c4a8, domeCol = 0xc4b498;
+          const baseMat = new THREE.MeshStandardMaterial({ color: sand, roughness: 0.8 });
+          const base = new THREE.Mesh(new THREE.BoxGeometry(60, 8, 45), baseMat);
+          base.position.y = 4; base.receiveShadow = true; scene.add(base);
+          const main = new THREE.Mesh(new THREE.BoxGeometry(35, 22, 28), baseMat);
+          main.position.y = 19; main.castShadow = true; scene.add(main);
+          const dome = new THREE.Mesh(
+            new THREE.SphereGeometry(14, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2.2),
+            new THREE.MeshStandardMaterial({ color: domeCol, roughness: 0.75 })
+          );
+          dome.position.y = 40; dome.castShadow = true; scene.add(dome);
+          [-22, 22].forEach(x => {
+            const wing = new THREE.Mesh(new THREE.BoxGeometry(12, 16, 28), baseMat);
+            wing.position.set(x, 16, 0); wing.castShadow = true; scene.add(wing);
+          });
+        }
+      }
+    };
+
+    const config = MONUMENT_CONFIG[monumentId] || MONUMENT_CONFIG.red_fort;
+    document.getElementById('monumentTitle').textContent = config.name;
+    document.getElementById('monumentSubtitle').textContent = config.subtitle;
+    document.getElementById('loadingText').textContent = 'Loading ' + config.name + '…';
+
+    const scene = new THREE.Scene();
+    const canvas = document.createElement('canvas');
+    canvas.width = 1; canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, '#0a2a4a'); grad.addColorStop(0.5, '#4a7a9a'); grad.addColorStop(1, '#e8e0d0');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1, 512);
+    scene.background = new THREE.CanvasTexture(canvas);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(45, 35, 55);
+    camera.lookAt(0, 12, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2.2;
+    controls.minDistance = 25;
+    controls.maxDistance = 120;
+    controls.target.set(0, 12, 0);
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.4;
+
+    const ambient = new THREE.AmbientLight(0x404060, 0.5);
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xfff5e6, 1.6);
+    sun.position.set(50, 80, 50);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
+    sun.shadow.camera.near = 10;
+    sun.shadow.camera.far = 150;
+    sun.shadow.camera.left = -40;
+    sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40;
+    sun.shadow.camera.bottom = -40;
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x88aaff, 0.4);
+    fill.position.set(-30, 30, -30);
+    scene.add(fill);
+
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(80, 48),
+      new THREE.MeshStandardMaterial({ color: 0x4a6a4a, roughness: 0.9 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    config.build(scene);
+
+    setTimeout(function() {
+      document.getElementById('loading').style.display = 'none';
+    }, 1500);
+
+    const dayBtn = document.getElementById('dayBtn');
+    const eveningBtn = document.getElementById('eveningBtn');
+    const nightBtn = document.getElementById('nightBtn');
+    const resetBtn = document.getElementById('resetView');
+    dayBtn.addEventListener('click', function() {
+      sun.position.set(50, 80, 50);
+      sun.intensity = 1.6;
+      sun.color.setHex(0xfff5e6);
+      ambient.intensity = 0.5;
+      scene.background = new THREE.CanvasTexture(canvas);
+    });
+    eveningBtn.addEventListener('click', function() {
+      sun.position.set(20, 25, 60);
+      sun.intensity = 1;
+      sun.color.setHex(0xffaa66);
+      ambient.intensity = 0.3;
+      scene.background = new THREE.Color(0x3a5a7a);
+    });
+    nightBtn.addEventListener('click', function() {
+      sun.position.set(0, -50, 0);
+      sun.intensity = 0.08;
+      ambient.intensity = 0.1;
+      scene.background = new THREE.Color(0x0a1a2a);
+    });
+    resetBtn.addEventListener('click', function() {
+      camera.position.set(45, 35, 55);
+      controls.target.set(0, 12, 0);
+      controls.autoRotate = true;
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', function() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

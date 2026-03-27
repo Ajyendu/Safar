@@ -1,0 +1,644 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travelr Super App</title>
+    
+    <!-- Google Fonts: Inter & Playfair Display -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Playfair+Display:wght@500;600&amp;display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Iconify -->
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        .leaflet-control-container { display: none; }
+        .leaflet-container { background: #fdfbf7; font-family: 'Inter', sans-serif; }
+        
+        .custom-marker-icon > div { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .custom-marker-icon:hover > div { transform: scale(1.15) translateY(-4px); z-index: 1000 !important; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); opacity: 0.5; }
+            50% { transform: translateY(-4px); opacity: 1; }
+        }
+        .typing-dot { animation: typing 1s infinite ease-in-out; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        .pulse-ring { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="relative h-screen w-screen overflow-hidden bg-[#fdfbf7] font-['Inter'] text-slate-800 antialiased selection:bg-[#f97316]/20 selection:text-[#f97316]">
+
+    <!-- Map Container -->
+    <div id="map" class="absolute inset-0 z-0 h-full w-full"></div>
+
+    <!-- Smart Event Toast -->
+    <div id="toast" class="pointer-events-none absolute left-1/2 top-6 z-50 flex -translate-x-1/2 -translate-y-[150%] items-center gap-3 rounded-full bg-slate-900/95 px-5 py-3 text-sm font-medium text-white shadow-2xl backdrop-blur-xl transition-all duration-500">
+        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[#f97316]">
+            <iconify-icon icon="solar:map-point-wave-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+        </div>
+        <span id="toast-msg">You've arrived at India Gate!</span>
+    </div>
+
+    <!-- Active Navigation Banner -->
+    <div id="nav-banner" class="pointer-events-none absolute left-1/2 top-6 z-40 flex w-[90%] -translate-x-1/2 -translate-y-[150%] flex-col gap-2 rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl transition-all duration-500 md:w-auto md:min-w-[400px]">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#38bdf8]/10 text-[#38bdf8]">
+                    <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-2xl"></iconify-icon>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium tracking-tight text-slate-900">Navigating to <span id="nav-target">Place</span></h3>
+                    <p class="text-xs text-slate-500" id="nav-stats">1.2 km • 15 min walk</p>
+                </div>
+            </div>
+            <button onclick="endJourney()" class="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500">
+                <iconify-icon icon="solar:close-circle-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+    </div>
+
+    <!-- Top Controls Layer -->
+    <header class="pointer-events-none absolute left-4 right-4 top-4 z-20 flex items-start justify-between md:left-6 md:right-6 md:top-6">
+        <!-- Logo -->
+        <div class="flex items-center gap-2 rounded-2xl bg-white/80 p-2.5 pr-4 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-2xl">
+            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <span class="font-['Playfair_Display'] text-sm font-medium tracking-tighter">TR</span>
+            </div>
+            <span class="font-['Playfair_Display'] text-base font-medium tracking-tight text-slate-900">Travelr</span>
+        </div>
+
+        <!-- Chat Toggle (Mobile/Desktop) -->
+        <button onclick="toggleChat()" class="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-2xl transition-all hover:bg-white hover:shadow-md active:scale-95">
+            <iconify-icon icon="solar:chat-round-line-linear" stroke-width="1.5" class="text-2xl text-slate-700"></iconify-icon>
+            <span class="absolute right-3 top-3 flex h-2.5 w-2.5 rounded-full bg-[#f97316] ring-2 ring-white"></span>
+        </button>
+    </header>
+
+    <!-- Map Controls -->
+    <div class="pointer-events-none absolute bottom-[30vh] right-4 z-20 flex flex-col gap-2 md:bottom-8 md:right-6">
+        <button class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" onclick="map.zoomIn()">
+            <iconify-icon icon="solar:add-linear" stroke-width="1.5" class="text-xl text-slate-600"></iconify-icon>
+        </button>
+        <button class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" onclick="map.zoomOut()">
+            <iconify-icon icon="solar:minus-linear" stroke-width="1.5" class="text-xl text-slate-600"></iconify-icon>
+        </button>
+        <div class="my-1 h-px w-full bg-slate-200/60"></div>
+        <button class="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" onclick="centerMap()">
+            <iconify-icon icon="solar:gps-linear" stroke-width="1.5" class="text-xl text-[#38bdf8]"></iconify-icon>
+        </button>
+    </div>
+
+    <!-- AI Travel Guide Chat Panel -->
+    <aside id="chat-panel" class="pointer-events-auto absolute bottom-4 right-4 top-20 z-30 flex w-[90vw] translate-x-[120%] flex-col overflow-hidden rounded-3xl bg-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-slate-900/5 backdrop-blur-2xl transition-transform duration-500 md:bottom-6 md:w-[360px]">
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b border-slate-100 p-4">
+            <div class="flex items-center gap-3">
+                <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+                    <iconify-icon icon="solar:smart-speaker-minimalistic-linear" stroke-width="1.5" class="text-xl text-slate-700"></iconify-icon>
+                    <div class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white"></div>
+                </div>
+                <div>
+                    <h3 class="font-['Playfair_Display'] text-base font-medium tracking-tight text-slate-900">Maya</h3>
+                    <p class="text-[10px] text-slate-500">Local AI Guide</p>
+                </div>
+            </div>
+            
+            <!-- Custom Toggle -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400">Voice</span>
+                <button id="voice-toggle" class="relative h-5 w-9 rounded-full bg-slate-200 transition-colors duration-300" onclick="toggleVoice()">
+                    <div class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-300"></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="chat-messages" class="no-scrollbar flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div class="flex max-w-[85%] gap-3">
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                    <iconify-icon icon="solar:stars-linear" stroke-width="1.5" class="text-sm text-slate-600"></iconify-icon>
+                </div>
+                <div class="rounded-2xl rounded-tl-none bg-slate-100 px-4 py-3 text-sm text-slate-700">
+                    Namaste! I'm Maya. Welcome to Delhi. Should we start exploring some historic monuments?
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="p-3">
+            <div class="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 focus-within:ring-[#f97316]/50">
+                <input type="text" id="chat-input" placeholder="Ask about places, routes..." class="w-full bg-transparent px-2 text-sm text-slate-700 placeholder:text-slate-400 outline-none" onkeypress="handleChat(event)">
+                <button class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-400 transition-colors hover:text-slate-700">
+                    <iconify-icon icon="solar:microphone-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                </button>
+                <button onclick="sendMsg()" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white transition-transform active:scale-95">
+                    <iconify-icon icon="solar:plain-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Bottom Place Discovery Panel -->
+    <div id="place-panel" class="pointer-events-auto absolute bottom-6 left-1/2 z-30 flex w-[92vw] -translate-x-1/2 translate-y-[150%] flex-col rounded-3xl bg-white/95 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-slate-900/5 backdrop-blur-2xl transition-transform duration-500 md:w-[420px]">
+        <div class="flex items-start gap-4">
+            <div class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+                <img id="panel-img" src="" class="h-full w-full object-cover" alt="Place">
+            </div>
+            <div class="flex-1 pt-1">
+                <div class="flex items-center justify-between">
+                    <h2 id="panel-title" class="font-['Playfair_Display'] text-lg font-medium tracking-tight text-slate-900">Place Name</h2>
+                    <span id="panel-dist" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">2.4 km</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+                    <iconify-icon icon="solar:star-bold" class="text-amber-400"></iconify-icon>
+                    <span class="font-medium text-slate-700">4.8</span>
+                    <span>Cultural Heritage</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+            <button class="flex flex-1 flex-col items-center gap-1 rounded-xl bg-white py-2 shadow-sm text-[#f97316]">
+                <iconify-icon icon="solar:walking-round-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                <span class="text-[10px] font-medium">15 min</span>
+            </button>
+            <button class="flex flex-1 flex-col items-center gap-1 py-2 text-slate-400 transition-colors hover:text-slate-700">
+                <iconify-icon icon="solar:bus-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                <span class="text-[10px] font-medium">5 min</span>
+            </button>
+            <button class="flex flex-1 flex-col items-center gap-1 py-2 text-slate-400 transition-colors hover:text-slate-700">
+                <iconify-icon icon="solar:scooter-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                <span class="text-[10px] font-medium">8 min</span>
+            </button>
+            <button class="flex flex-1 flex-col items-center gap-1 py-2 text-slate-400 transition-colors hover:text-slate-700">
+                <iconify-icon icon="solar:train-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                <span class="text-[10px] font-medium">--</span>
+            </button>
+        </div>
+
+        <div class="mt-4 flex gap-3">
+            <button onclick="openDetails()" class="flex flex-1 items-center justify-center rounded-2xl bg-slate-100 py-3.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200 active:scale-95">
+                Explore Story
+            </button>
+            <button onclick="startJourney()" class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#f97316] py-3.5 text-xs font-medium text-white shadow-lg shadow-[#f97316]/20 transition-colors hover:bg-[#ea580c] active:scale-95">
+                <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-sm"></iconify-icon>
+                Start Journey
+            </button>
+        </div>
+    </div>
+
+    <!-- Tourist Place Detail Modal (Documentary Style) -->
+    <div id="details-modal" class="pointer-events-none absolute inset-0 z-40 bg-slate-900/40 opacity-0 backdrop-blur-sm transition-opacity duration-500">
+        <div class="absolute bottom-0 left-0 right-0 top-12 flex flex-col overflow-hidden rounded-t-[2.5rem] bg-white shadow-2xl transition-transform duration-500 translate-y-full md:left-1/2 md:top-8 md:w-[640px] md:-translate-x-1/2 md:rounded-[2.5rem] md:mb-8" id="details-content">
+            
+            <!-- Hero Section -->
+            <div class="relative h-72 w-full shrink-0 md:h-80">
+                <img id="modal-img" src="" class="h-full w-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10"></div>
+                
+                <button onclick="closeDetails()" class="pointer-events-auto absolute left-6 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-transform hover:scale-105 hover:bg-white/30">
+                    <iconify-icon icon="solar:arrow-left-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+                </button>
+                
+                <div class="absolute right-6 top-6 flex gap-2">
+                    <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-colors hover:bg-white/30">
+                        <iconify-icon icon="solar:heart-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+                    </button>
+                    <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-colors hover:bg-white/30">
+                        <iconify-icon icon="solar:share-circle-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+                    </button>
+                </div>
+
+                <div class="absolute bottom-6 left-6 right-6">
+                    <span class="mb-3 inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-white backdrop-blur-md">
+                        <iconify-icon icon="solar:map-point-linear" class="text-xs"></iconify-icon> Historical Landmark
+                    </span>
+                    <h1 id="modal-title" class="font-['Playfair_Display'] text-4xl font-medium tracking-tight text-white drop-shadow-sm">Title</h1>
+                </div>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="no-scrollbar pointer-events-auto flex-1 overflow-y-auto bg-white px-6 py-8 md:px-10">
+                
+                <!-- Meta Details -->
+                <div class="flex items-center gap-5 border-b border-slate-100 pb-6 text-sm text-slate-500">
+                    <div class="flex items-center gap-2"><iconify-icon icon="solar:clock-circle-linear" class="text-lg text-slate-400"></iconify-icon> Built 1931</div>
+                    <div class="h-1 w-1 rounded-full bg-slate-300"></div>
+                    <div class="flex items-center gap-2"><iconify-icon icon="solar:ticket-linear" class="text-lg text-slate-400"></iconify-icon> Free Entry</div>
+                    <div class="h-1 w-1 rounded-full bg-slate-300"></div>
+                    <div class="flex items-center gap-2"><iconify-icon icon="solar:star-bold" class="text-lg text-amber-400"></iconify-icon> 4.8</div>
+                </div>
+
+                <!-- Short Summary -->
+                <p class="mt-6 text-base font-medium leading-relaxed text-slate-800">
+                    A prominent war memorial standing tall in the heart of the city, an architectural marvel that bridges the past with the present.
+                </p>
+
+                <!-- History -->
+                <div class="mt-10">
+                    <div class="mb-4 flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                            <iconify-icon icon="solar:book-bookmark-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                        </div>
+                        <h3 class="font-['Playfair_Display'] text-2xl font-medium tracking-tight text-slate-900">The Story</h3>
+                    </div>
+                    <p id="modal-desc" class="text-sm leading-relaxed text-slate-600">
+                        Detailed description goes here. It serves as a tribute to the soldiers who sacrificed their lives. The intricate carvings and imposing structure make it a must-visit destination for history enthusiasts.
+                    </p>
+                </div>
+
+                <!-- Media Gallery Carousel -->
+                <div class="mt-10">
+                    <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-4">Glimpses</h3>
+                    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x">
+                        <img src="https://images.unsplash.com/photo-1587474260580-589f814b7e1c?auto=format&amp;fit=crop&amp;w=400&amp;q=80" class="h-40 w-56 shrink-0 snap-start rounded-2xl object-cover shadow-sm ring-1 ring-slate-900/5">
+                        <img src="https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&amp;fit=crop&amp;w=400&amp;q=80" class="h-40 w-56 shrink-0 snap-start rounded-2xl object-cover shadow-sm ring-1 ring-slate-900/5">
+                        <img src="https://images.unsplash.com/photo-1620300435165-4f4044c34af7?auto=format&amp;fit=crop&amp;w=400&amp;q=80" class="h-40 w-56 shrink-0 snap-start rounded-2xl object-cover shadow-sm ring-1 ring-slate-900/5">
+                    </div>
+                </div>
+
+                <!-- 3D / Video Embed Placeholder -->
+                <div class="mt-10 relative h-56 w-full rounded-3xl bg-slate-900 overflow-hidden group shadow-md cursor-pointer" onclick="enterMonumentMode()">
+                    <img src="https://images.unsplash.com/photo-1621213038668-1bd05321f660?auto=format&amp;fit=crop&amp;w=800&amp;q=80" class="absolute inset-0 h-full w-full object-cover opacity-50 mix-blend-overlay transition-transform duration-700 group-hover:scale-105">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white transition-transform duration-300 group-hover:scale-110 group-hover:bg-white/30">
+                            <iconify-icon icon="solar:box-minimalistic-linear" stroke-width="1.5" class="text-3xl"></iconify-icon>
+                        </div>
+                        <span class="text-sm font-medium text-white tracking-wide">Explore 3D View</span>
+                    </div>
+                </div>
+
+                <!-- Cultural Significance -->
+                <div class="mt-10">
+                    <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-3">Cultural Significance</h3>
+                    <p class="text-sm leading-relaxed text-slate-600">
+                        An important landmark standing as a memorial, deeply integrated into the cultural and historical fabric of the city. It represents architectural brilliance and stands as a symbol of resilience.
+                    </p>
+                </div>
+
+                <!-- Interesting Facts -->
+                <div class="mt-10 pb-4">
+                    <h3 class="font-['Playfair_Display'] text-xl font-medium tracking-tight text-slate-900 mb-5">Fascinating Facts</h3>
+                    <ul class="space-y-4">
+                        <li class="flex gap-4 items-start rounded-2xl bg-orange-50/50 p-4 ring-1 ring-orange-100/50">
+                            <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[#f97316]">
+                                <iconify-icon icon="solar:star-linear" class="text-xs"></iconify-icon>
+                            </div>
+                            <span class="text-sm text-slate-700 leading-relaxed">It took over 10 years to complete the construction of this magnificent structure.</span>
+                        </li>
+                        <li class="flex gap-4 items-start rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
+                            <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                                <iconify-icon icon="solar:lightbulb-bolt-linear" class="text-xs"></iconify-icon>
+                            </div>
+                            <span class="text-sm text-slate-700 leading-relaxed">The architectural style beautifully blends ancient traditional motifs with modern engineering techniques.</span>
+                        </li>
+                        <li class="flex gap-4 items-start rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
+                            <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                                <iconify-icon icon="solar:camera-linear" class="text-xs"></iconify-icon>
+                            </div>
+                            <span class="text-sm text-slate-700 leading-relaxed">It is one of the most photographed monuments in the region, especially during the golden hour.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Sticky Action Bottom Bar -->
+            <div class="pointer-events-auto flex gap-3 border-t border-slate-100 bg-white/95 p-5 backdrop-blur-xl">
+                <button class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-100 py-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 active:scale-95">
+                    <iconify-icon icon="solar:map-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                    Open in Maps
+                </button>
+                <button onclick="startJourneyFromModal()" class="flex flex-[1.5] items-center justify-center gap-2 rounded-2xl bg-[#f97316] py-3.5 text-sm font-medium text-white shadow-lg shadow-[#f97316]/20 transition-all hover:bg-[#ea580c] active:scale-95">
+                    <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                    Start Journey
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monument Immersive Mode Overlay (Unchanged from original structure, triggered by 3D box) -->
+    <div id="monument-mode" class="pointer-events-none absolute inset-0 z-50 flex flex-col bg-slate-950 opacity-0 transition-opacity duration-700">
+        
+        <div class="absolute inset-0 z-0 opacity-40 mix-blend-screen" style="background-image: radial-gradient(circle at 50% 50%, #1e293b 2px, transparent 2px); background-size: 30px 30px;">
+            <div class="absolute left-1/2 top-1/2 h-[60vh] w-[80vw] -translate-x-1/2 -translate-y-1/2 rounded-[3rem] border border-[#38bdf8]/30 bg-slate-900/50 backdrop-blur-sm md:w-[40vw]"></div>
+            
+            <div class="absolute left-[40%] top-[35%] flex flex-col items-center">
+                <div class="pulse-ring absolute h-6 w-6 rounded-full bg-[#38bdf8]"></div>
+                <div class="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#38bdf8] text-white shadow-[0_0_20px_rgba(56,189,248,0.5)]">
+                    <span class="text-xs font-medium">1</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pointer-events-auto relative z-10 flex items-center justify-between p-6 pt-10 md:p-8">
+            <div>
+                <span class="text-[10px] font-medium uppercase tracking-widest text-[#38bdf8]">Immersive Experience</span>
+                <h1 id="monument-title" class="font-['Playfair_Display'] text-2xl font-medium tracking-tight text-white mt-1">Monument</h1>
+            </div>
+            <button onclick="exitMonumentMode()" class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20">
+                <iconify-icon icon="solar:close-circle-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+
+        <div class="pointer-events-auto relative z-10 mx-6 mt-auto mb-20 rounded-3xl bg-slate-900/80 p-5 shadow-2xl ring-1 ring-white/10 backdrop-blur-2xl md:mx-auto md:w-[500px]">
+            <div class="flex items-start justify-between">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#38bdf8]/20 text-[10px] font-medium text-[#38bdf8]">1</span>
+                        <h3 class="font-['Playfair_Display'] text-lg font-medium text-white">The Main Arch</h3>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400">Scan the QR code nearby to unlock the full historical audio narrative and hidden architectural details.</p>
+                </div>
+            </div>
+            
+            <div class="mt-5 flex gap-3">
+                <button class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#38bdf8] py-3 text-xs font-medium text-slate-950 transition-colors hover:bg-sky-400 active:scale-95">
+                    <iconify-icon icon="solar:scanner-linear" stroke-width="1.5" class="text-base"></iconify-icon>
+                    Scan QR
+                </button>
+                <button class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white transition-colors hover:bg-white/20 active:scale-95">
+                    <iconify-icon icon="solar:play-circle-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data: Delhi Monuments
+        const userLoc = [28.6139, 77.2090]; 
+        
+        const places = [
+            { id: 1, name: "India Gate", lat: 28.6129, lng: 77.2295, type: "Monument", icon: "solar:buildings-linear", rating: "4.8", image: "https://images.unsplash.com/photo-1587474260580-589f814b7e1c?auto=format&fit=crop&q=80&w=800", desc: "A prominent war memorial standing tall in the heart of Delhi, commemorating the soldiers of the British Indian Army." },
+            { id: 2, name: "Red Fort", lat: 28.6562, lng: 77.2410, type: "Fortress", icon: "solar:castle-linear", rating: "4.7", image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&q=80&w=800", desc: "Historic fort built by Shah Jahan, famous for its massive red sandstone walls and intricate Mughal architecture." },
+            { id: 3, name: "Humayun's Tomb", lat: 28.5933, lng: 77.2507, type: "Mausoleum", icon: "solar:monument-linear", rating: "4.9", image: "https://images.unsplash.com/photo-1620300435165-4f4044c34af7?auto=format&fit=crop&q=80&w=800", desc: "Stunning 16th-century tomb, a precursor to the Taj Mahal, surrounded by magnificent Persian-style gardens." },
+            { id: 4, name: "Lotus Temple", lat: 28.5535, lng: 77.2588, type: "Temple", icon: "solar:magic-stick-3-linear", rating: "4.6", image: "https://images.unsplash.com/photo-1621213038668-1bd05321f660?auto=format&fit=crop&q=80&w=800", desc: "A Bahá'í House of Worship notable for its flowerlike shape, serving as a prominent architectural masterpiece." }
+        ];
+
+        let map;
+        let markers = [];
+        let userMarker;
+        let activeRoute = null;
+        let activePlace = null;
+        let isChatOpen = false;
+        let voiceEnabled = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(userLoc, 13);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            const userIcon = L.divIcon({
+                className: 'custom-user-icon',
+                html: `<div class="relative flex h-8 w-8 items-center justify-center">
+                         <div class="pulse-ring absolute inset-0 rounded-full bg-[#38bdf8]"></div>
+                         <div class="relative h-4 w-4 rounded-full bg-[#38bdf8] ring-2 ring-white"></div>
+                       </div>`,
+                iconSize: [32, 32], iconAnchor: [16, 16]
+            });
+            userMarker = L.marker(userLoc, { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+
+            renderMarkers();
+        });
+
+        const createIcon = (place, isVisited = false) => {
+            const bg = isVisited ? "bg-green-500" : "bg-slate-900";
+            const iconColor = "text-white";
+            
+            return L.divIcon({
+                className: 'custom-marker-icon',
+                html: `<div class="flex h-10 w-10 items-center justify-center rounded-2xl ${bg} ${iconColor} shadow-lg ring-2 ring-white/50 backdrop-blur-md">
+                         <iconify-icon icon="${isVisited ? 'solar:check-circle-linear' : place.icon}" stroke-width="1.5" class="text-xl"></iconify-icon>
+                       </div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+        };
+
+        const renderMarkers = () => {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            places.forEach(place => {
+                const marker = L.marker([place.lat, place.lng], { icon: createIcon(place) })
+                    .addTo(map)
+                    .on('click', () => selectPlace(place));
+                place.marker = marker;
+                markers.push(marker);
+            });
+        };
+
+        const selectPlace = (place) => {
+            activePlace = place;
+            
+            const offsetLat = window.innerWidth <= 768 ? -0.015 : -0.005;
+            map.flyTo([place.lat + offsetLat, place.lng], 14, { duration: 1.2 });
+
+            document.getElementById('panel-title').textContent = place.name;
+            document.getElementById('panel-img').src = place.image;
+            document.getElementById('modal-title').textContent = place.name;
+            document.getElementById('modal-img').src = place.image;
+            document.getElementById('modal-desc').textContent = place.desc;
+            document.getElementById('monument-title').textContent = place.name;
+
+            const panel = document.getElementById('place-panel');
+            panel.classList.remove('translate-y-[150%]');
+            
+            botTyping();
+            setTimeout(() => {
+                addMessage(`Ah, ${place.name}! Excellent choice. Should I guide you there or tell you a story about it?`, false);
+            }, 1200);
+        };
+
+        const centerMap = () => {
+            map.flyTo(userLoc, 14, { duration: 1 });
+        };
+
+        const toggleChat = () => {
+            isChatOpen = !isChatOpen;
+            const panel = document.getElementById('chat-panel');
+            if (isChatOpen) {
+                panel.classList.remove('translate-x-[120%]');
+            } else {
+                panel.classList.add('translate-x-[120%]');
+            }
+        };
+
+        const toggleVoice = () => {
+            voiceEnabled = !voiceEnabled;
+            const toggleDot = document.querySelector('#voice-toggle div');
+            const toggleBg = document.getElementById('voice-toggle');
+            if (voiceEnabled) {
+                toggleDot.classList.add('translate-x-4');
+                toggleBg.classList.replace('bg-slate-200', 'bg-[#f97316]');
+            } else {
+                toggleDot.classList.remove('translate-x-4');
+                toggleBg.classList.replace('bg-[#f97316]', 'bg-slate-200');
+            }
+        };
+
+        const openDetails = () => {
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('details-content');
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('pointer-events-auto', 'opacity-100');
+            setTimeout(() => content.classList.remove('translate-y-full'), 50);
+        };
+
+        const closeDetails = () => {
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('details-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => {
+                modal.classList.remove('pointer-events-auto', 'opacity-100');
+                modal.classList.add('pointer-events-none', 'opacity-0');
+            }, 300);
+        };
+
+        const startJourneyFromModal = () => {
+            closeDetails();
+            setTimeout(() => {
+                startJourney();
+            }, 300);
+        };
+
+        const startJourney = () => {
+            if (!activePlace) return;
+            
+            document.getElementById('place-panel').classList.add('translate-y-[150%]');
+            
+            if (activeRoute) map.removeLayer(activeRoute);
+            activeRoute = L.polyline([userLoc, [activePlace.lat, activePlace.lng]], {
+                color: '#f97316',
+                weight: 4,
+                dashArray: '8, 8',
+                lineCap: 'round',
+                className: 'route-line'
+            }).addTo(map);
+
+            map.fitBounds(activeRoute.getBounds(), { padding: [50, 50] });
+
+            document.getElementById('nav-target').textContent = activePlace.name;
+            document.getElementById('nav-banner').classList.remove('-translate-y-[150%]');
+
+            setTimeout(() => triggerArrival(activePlace), 4000);
+        };
+
+        const endJourney = () => {
+            if (activeRoute) map.removeLayer(activeRoute);
+            document.getElementById('nav-banner').classList.add('-translate-y-[150%]');
+            centerMap();
+        };
+
+        const triggerArrival = (place) => {
+            place.marker.setIcon(createIcon(place, true));
+            
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = `You've arrived at ${place.name}!`;
+            toast.classList.remove('-translate-y-[150%]');
+            
+            setTimeout(() => {
+                toast.classList.add('-translate-y-[150%]');
+                endJourney();
+                openDetails();
+            }, 3000);
+        };
+
+        const enterMonumentMode = () => {
+            closeDetails();
+            const overlay = document.getElementById('monument-mode');
+            overlay.classList.remove('pointer-events-none', 'opacity-0');
+            overlay.classList.add('pointer-events-auto', 'opacity-100');
+        };
+
+        const exitMonumentMode = () => {
+            const overlay = document.getElementById('monument-mode');
+            overlay.classList.remove('pointer-events-auto', 'opacity-100');
+            overlay.classList.add('pointer-events-none', 'opacity-0');
+            setTimeout(() => { openDetails(); }, 400); // Re-open details after exiting 3D
+        };
+
+        const botTyping = () => {
+            const container = document.getElementById('chat-messages');
+            const id = 'typing-' + Date.now();
+            const html = `
+                <div id="${id}" class="flex max-w-[85%] gap-3 transition-opacity">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100"><iconify-icon icon="solar:stars-linear" class="text-sm text-slate-600"></iconify-icon></div>
+                    <div class="flex items-center gap-1 rounded-2xl rounded-tl-none bg-slate-100 px-4 py-3">
+                        <div class="typing-dot h-1.5 w-1.5 rounded-full bg-slate-400"></div>
+                        <div class="typing-dot h-1.5 w-1.5 rounded-full bg-slate-400"></div>
+                        <div class="typing-dot h-1.5 w-1.5 rounded-full bg-slate-400"></div>
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        };
+
+        const addMessage = (text, isUser = false) => {
+            const container = document.getElementById('chat-messages');
+            const typingId = document.querySelector('[id^="typing-"]');
+            if (typingId) typingId.remove();
+
+            const userHtml = `
+                <div class="ml-auto max-w-[85%] rounded-2xl rounded-tr-none bg-[#f97316] px-4 py-3 text-sm text-white">
+                    ${text}
+                </div>`;
+                
+            const botHtml = `
+                <div class="flex max-w-[85%] gap-3">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                        <iconify-icon icon="solar:stars-linear" class="text-sm text-slate-600"></iconify-icon>
+                    </div>
+                    <div class="rounded-2xl rounded-tl-none bg-slate-100 px-4 py-3 text-sm text-slate-700 leading-relaxed">
+                        ${text}
+                    </div>
+                </div>`;
+
+            container.insertAdjacentHTML('beforeend', isUser ? userHtml : botHtml);
+            container.scrollTop = container.scrollHeight;
+        };
+
+        const handleChat = (e) => {
+            if (e.key === 'Enter') sendMsg();
+        };
+
+        const sendMsg = () => {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            addMessage(text, true);
+            input.value = '';
+            
+            botTyping();
+            setTimeout(() => {
+                if(text.toLowerCase().includes('route')) {
+                    addMessage("I'll draw the route on the map for you!", false);
+                    if(activePlace) startJourney();
+                } else {
+                    addMessage("That's fascinating! Did you know the Red Fort was originally white? It was painted red by the British to preserve the stone.", false);
+                }
+            }, 1500);
+        };
+
+    </script>
+
+</body></html>

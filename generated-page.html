@@ -1,0 +1,377 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Travel Guide</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Iconify -->
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    
+
+    <style>
+        /* Custom map overrides */
+        .leaflet-control-container { display: none; } /* Hide default zoom */
+        .leaflet-container { background: #f8fafc; font-family: 'Inter', sans-serif; }
+        
+        /* Smooth transitions for custom markers */
+        .custom-marker-icon > div { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .custom-marker-icon:hover > div { transform: scale(1.15) translateY(-4px); z-index: 1000 !important; }
+        
+        /* Hide scrollbars for clean UI */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Detail panel slide animation */
+        .panel-slide-left { transform: translateX(-100%); opacity: 0; }
+        .panel-slide-active { transform: translateX(0); opacity: 1; }
+        .panel-slide-right { transform: translateX(100%); opacity: 0; }
+        
+        /* Mobile bottom sheet animation */
+        @media (max-width: 768px) {
+            .panel-slide-left, .panel-slide-right { transform: translateY(100%); }
+            .panel-slide-active { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="relative h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+    <!-- Map Container -->
+    <div id="map" class="absolute inset-0 z-0 h-full w-full"></div>
+
+    <!-- Top Floating Search Bar -->
+    <header class="pointer-events-none absolute left-4 right-4 top-4 z-20 flex items-center justify-between md:left-8 md:right-8 md:top-8">
+        <!-- Logo -->
+        <div class="hidden items-center gap-2 rounded-2xl bg-white/80 p-3 pr-5 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl md:flex">
+            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <span class="text-sm font-semibold tracking-tight">TR</span>
+            </div>
+            <span class="text-sm font-semibold tracking-tight text-slate-900">Travelr</span>
+        </div>
+
+        <!-- Search -->
+        <div class="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-white/85 p-2 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md focus-within:bg-white focus-within:ring-indigo-500/20 md:mx-auto">
+            <iconify-icon icon="solar:magnifier-linear" stroke-width="1.5" class="ml-3 text-xl text-slate-400"></iconify-icon>
+            <input type="text" placeholder="Search cities, places, or monuments..." class="w-full bg-transparent text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none">
+            <button class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200">
+                <iconify-icon icon="solar:tuning-square-2-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+            </button>
+        </div>
+        
+        <!-- Empty div for flex balance on desktop -->
+        <div class="hidden w-[100px] md:block"></div>
+    </header>
+
+    <!-- Side Panel / Bottom Sheet -->
+    <aside class="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex max-h-[55vh] flex-col overflow-hidden rounded-t-3xl bg-white/85 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-2xl transition-transform duration-500 md:bottom-8 md:left-8 md:top-28 md:max-h-none md:w-[380px] md:rounded-3xl md:shadow-xl">
+        <div class="pointer-events-auto relative flex h-full w-full flex-col overflow-hidden">
+            
+            <!-- Main List View -->
+            <div id="view-list" class="panel-slide-active absolute inset-0 flex flex-col transition-all duration-500">
+                <!-- Mobile drag handle -->
+                <div class="flex w-full items-center justify-center pt-3 pb-1 md:hidden">
+                    <div class="h-1 w-10 rounded-full bg-slate-300"></div>
+                </div>
+
+                <div class="px-5 pb-3 pt-2 md:pt-6">
+                    <h2 class="text-xl font-semibold tracking-tight text-slate-900">Explore Paris</h2>
+                    <p class="mt-0.5 text-xs text-slate-500">Curated places near you</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-4">
+                    <button class="shrink-0 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-sm">Top Picks</button>
+                    <button class="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50">Monuments</button>
+                    <button class="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50">Museums</button>
+                    <button class="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50">Parks</button>
+                </div>
+
+                <!-- Places List (Populated via JS) -->
+                <div id="places-container" class="no-scrollbar flex-1 overflow-y-auto px-3 pb-6">
+                    <!-- Cards injected here -->
+                </div>
+            </div>
+
+            <!-- Detail View -->
+            <div id="view-detail" class="panel-slide-right absolute inset-0 flex flex-col bg-white transition-all duration-500">
+                <!-- Image Header -->
+                <div class="relative h-48 w-full shrink-0 bg-slate-200">
+                    <img id="detail-img" src="" class="h-full w-full object-cover" alt="Place image">
+                    <button onclick="showList()" class="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-sm backdrop-blur-md transition-transform hover:scale-105">
+                        <iconify-icon icon="solar:arrow-left-linear" stroke-width="2" class="text-lg"></iconify-icon>
+                    </button>
+                    <div class="absolute bottom-4 left-4 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-semibold backdrop-blur-md" id="detail-tag">Monument</div>
+                </div>
+                
+                <!-- Content -->
+                <div class="no-scrollbar flex-1 overflow-y-auto p-5">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 id="detail-title" class="text-xl font-semibold tracking-tight text-slate-900">Title</h2>
+                            <div class="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                                <iconify-icon icon="solar:star-bold" class="text-amber-400"></iconify-icon>
+                                <span class="font-medium text-slate-700" id="detail-rating">4.8</span>
+                                <span id="detail-reviews">(12k reviews)</span>
+                            </div>
+                        </div>
+                        <button class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-slate-200 transition-colors hover:text-red-500">
+                            <iconify-icon icon="solar:heart-linear" stroke-width="1.5" class="text-xl"></iconify-icon>
+                        </button>
+                    </div>
+                    
+                    <p id="detail-desc" class="mt-4 text-sm leading-relaxed text-slate-600">Description goes here.</p>
+                    
+                    <div class="mt-6 flex flex-col gap-3">
+                        <div class="flex items-center gap-3 text-sm text-slate-600">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-100">
+                                <iconify-icon icon="solar:clock-circle-linear" stroke-width="1.5"></iconify-icon>
+                            </div>
+                            <span class="font-medium">Open 9:00 AM - 6:00 PM</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-slate-600">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-100">
+                                <iconify-icon icon="solar:ticket-linear" stroke-width="1.5"></iconify-icon>
+                            </div>
+                            <span class="font-medium">Entry: €15.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="border-t border-slate-100 p-4">
+                    <button class="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-medium text-white transition-all hover:bg-slate-800 active:scale-[0.98]">
+                        <iconify-icon icon="solar:routing-linear" stroke-width="1.5" class="text-lg"></iconify-icon>
+                        Get Directions
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- Floating Map Controls (Right Side) -->
+    <div class="pointer-events-none absolute bottom-[60vh] right-4 z-20 flex flex-col gap-3 md:bottom-8 md:right-8">
+        <button class="pointer-events-auto group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" onclick="map.zoomIn()" aria-label="Zoom In">
+            <iconify-icon icon="solar:add-linear" stroke-width="1.5" class="text-2xl text-slate-600 transition-colors group-hover:text-slate-900"></iconify-icon>
+        </button>
+        <button class="pointer-events-auto group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" onclick="map.zoomOut()" aria-label="Zoom Out">
+            <iconify-icon icon="solar:minus-linear" stroke-width="1.5" class="text-2xl text-slate-600 transition-colors group-hover:text-slate-900"></iconify-icon>
+        </button>
+        
+        <div class="my-1 h-px w-full bg-slate-200/60"></div>
+
+        <button class="pointer-events-auto group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" aria-label="Locate Me" onclick="locateUser()">
+            <iconify-icon icon="solar:gps-linear" stroke-width="1.5" class="text-2xl text-slate-600 transition-colors group-hover:text-indigo-600"></iconify-icon>
+        </button>
+        <button class="pointer-events-auto group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:bg-white hover:shadow-md active:scale-95" id="cursor-toggle" aria-label="Cursor Mode">
+            <iconify-icon icon="solar:cursor-square-linear" stroke-width="1.5" class="text-2xl text-slate-600 transition-colors group-hover:text-slate-900"></iconify-icon>
+        </button>
+    </div>
+
+    <!-- Central Action Button (Monument Mode) -->
+    <div class="pointer-events-none absolute bottom-6 left-1/2 z-20 hidden -translate-x-1/2 md:block">
+        <button id="monument-mode-btn" class="pointer-events-auto flex items-center gap-2.5 rounded-full bg-slate-900/95 px-6 py-3.5 text-sm font-medium text-white shadow-xl shadow-slate-900/10 ring-1 ring-white/10 backdrop-blur-md transition-all hover:scale-105 hover:bg-slate-800 active:scale-95">
+            <iconify-icon icon="solar:monument-linear" stroke-width="1.5" class="text-lg text-indigo-300"></iconify-icon>
+            Enter Monument Mode
+        </button>
+    </div>
+
+    <script>
+        // Mock Data for Paris
+        const places = [
+            { id: 1, name: "Eiffel Tower", lat: 48.8584, lng: 2.2945, type: "Monument", icon: "solar:monument-linear", rating: "4.8", reviews: "125k", image: "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&q=80&w=800", desc: "Gustave Eiffel's iconic, wrought-iron, 1889 tower, with steps and elevators to observation decks." },
+            { id: 2, name: "Louvre Museum", lat: 48.8606, lng: 2.3376, type: "Museum", icon: "solar:pallette-2-linear", rating: "4.7", reviews: "98k", image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&q=80&w=800", desc: "Former historic palace housing a huge art collection, from Roman sculptures to Da Vinci's Mona Lisa." },
+            { id: 3, name: "Arc de Triomphe", lat: 48.8738, lng: 2.2950, type: "Monument", icon: "solar:buildings-linear", rating: "4.7", reviews: "65k", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800", desc: "Iconic triumphal arch built to commemorate Napoleon's victories, with an observation deck." },
+            { id: 4, name: "Notre-Dame Cathedral", lat: 48.8529, lng: 2.3499, type: "Monument", icon: "solar:home-angle-linear", rating: "4.6", reviews: "80k", image: "https://images.unsplash.com/photo-1563240619-44ce02d0834c?auto=format&fit=crop&q=80&w=800", desc: "Towering, 13th-century cathedral with flying buttresses and gargoyles, setting for Hugo's novel." },
+            { id: 5, name: "Luxembourg Gardens", lat: 48.8462, lng: 2.3371, type: "Park", icon: "solar:tree-linear", rating: "4.8", reviews: "45k", image: "https://images.unsplash.com/photo-1596404781477-8c4391e0a2db?auto=format&fit=crop&q=80&w=800", desc: "17th-century park with formally laid-out gardens, trees planted in patterns & statues on pedestals." }
+        ];
+
+        let map;
+        let markers = [];
+        let monumentMode = false;
+        let lightTileLayer, darkTileLayer;
+
+        // Initialize Map
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup Leaflet Map centered on Paris
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([48.8566, 2.32], 13);
+
+            // Clean minimal basemap (CartoDB Positron)
+            lightTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            // Dark mode basemap
+            darkTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            });
+
+            renderList();
+            renderMarkers();
+        });
+
+        // Create Custom Marker HTML
+        const createIcon = (place) => {
+            const isMonument = place.type === 'Monument';
+            const baseClasses = "flex h-11 w-11 items-center justify-center rounded-full shadow-lg ring-4 backdrop-blur-md";
+            const colorClasses = isMonument 
+                ? "bg-indigo-600 text-white ring-indigo-600/20" 
+                : "bg-white/95 text-slate-700 ring-white/50";
+            
+            return L.divIcon({
+                className: 'custom-marker-icon',
+                html: `<div class="${baseClasses} ${colorClasses}">
+                         <iconify-icon icon="${place.icon}" stroke-width="1.5" class="text-xl"></iconify-icon>
+                       </div>`,
+                iconSize: [44, 44],
+                iconAnchor: [22, 22]
+            });
+        };
+
+        // Render Markers on Map
+        const renderMarkers = (filter = 'all') => {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            places.forEach(place => {
+                if (filter === 'monuments' && place.type !== 'Monument') return;
+
+                const marker = L.marker([place.lat, place.lng], { icon: createIcon(place) })
+                    .addTo(map)
+                    .on('click', () => handlePlaceClick(place));
+                
+                markers.push(marker);
+            });
+        };
+
+        // Render Sidebar List
+        const renderList = () => {
+            const container = document.getElementById('places-container');
+            container.innerHTML = '';
+
+            places.forEach((place, index) => {
+                // Staggered animation delay
+                const delay = index * 100;
+                const html = `
+                    <div class="group mx-2 mb-2 mt-2 flex cursor-pointer gap-4 rounded-2xl bg-white p-2.5 transition-all duration-300 hover:bg-slate-50 hover:shadow-md hover:ring-1 hover:ring-slate-900/5 active:scale-[0.98]" style="animation: slideUp 0.5s ease forwards ${delay}ms; opacity: 0; transform: translateY(10px);" onclick="handlePlaceClickById(${place.id})">
+                        <div class="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-black/5">
+                            <img src="${place.image}" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                        </div>
+                        <div class="flex flex-1 flex-col justify-center py-1 pr-2">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold tracking-tight text-slate-900">${place.name}</h3>
+                                <span class="text-[10px] font-medium text-slate-400">${place.type}</span>
+                            </div>
+                            <div class="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                                <iconify-icon icon="solar:star-bold" class="text-amber-400"></iconify-icon>
+                                <span class="font-medium text-slate-700">${place.rating}</span>
+                                <span>(${place.reviews})</span>
+                            </div>
+                            <p class="mt-1.5 line-clamp-1 text-xs text-slate-400">${place.desc}</p>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        };
+
+        // Inject simple animation styles for list items
+        document.head.insertAdjacentHTML('beforeend', `<style>@keyframes slideUp { to { opacity: 1; transform: translateY(0); } }</style>`);
+
+        // Interactions
+        const handlePlaceClickById = (id) => {
+            const place = places.find(p => p.id === id);
+            if (place) handlePlaceClick(place);
+        };
+
+        const handlePlaceClick = (place) => {
+            // Smoothly pan map to location with offset for panel
+            const offsetLng = window.innerWidth > 768 ? -0.015 : 0; // offset left on desktop
+            const offsetLat = window.innerWidth <= 768 ? -0.01 : 0; // offset top on mobile
+            map.flyTo([place.lat + offsetLat, place.lng + offsetLng], 15, { duration: 1.5 });
+
+            // Populate Detail View
+            document.getElementById('detail-img').src = place.image;
+            document.getElementById('detail-tag').textContent = place.type;
+            document.getElementById('detail-title').textContent = place.name;
+            document.getElementById('detail-rating').textContent = place.rating;
+            document.getElementById('detail-reviews').textContent = `(${place.reviews} reviews)`;
+            document.getElementById('detail-desc').textContent = place.desc;
+
+            // Slide Panels
+            document.getElementById('view-list').classList.remove('panel-slide-active');
+            document.getElementById('view-list').classList.add('panel-slide-left');
+            
+            document.getElementById('view-detail').classList.remove('panel-slide-right');
+            document.getElementById('view-detail').classList.add('panel-slide-active');
+        };
+
+        const showList = () => {
+            document.getElementById('view-detail').classList.remove('panel-slide-active');
+            document.getElementById('view-detail').classList.add('panel-slide-right');
+            
+            document.getElementById('view-list').classList.remove('panel-slide-left');
+            document.getElementById('view-list').classList.add('panel-slide-active');
+            
+            map.flyTo([48.8566, 2.32], 13, { duration: 1 });
+        };
+
+        const locateUser = () => {
+            // Fake locate animation
+            map.flyTo([48.8606, 2.3376], 14, { duration: 1.5 });
+            const btn = document.querySelector('[aria-label="Locate Me"] iconify-icon');
+            btn.classList.add('text-indigo-600', 'animate-pulse');
+            setTimeout(() => btn.classList.remove('animate-pulse'), 2000);
+        };
+
+        // Monument Mode Toggle
+        document.getElementById('monument-mode-btn').addEventListener('click', function() {
+            monumentMode = !monumentMode;
+            const icon = this.querySelector('iconify-icon');
+            
+            if (monumentMode) {
+                this.classList.replace('bg-slate-900/95', 'bg-indigo-600/95');
+                this.innerHTML = `<iconify-icon icon="solar:close-circle-linear" stroke-width="1.5" class="text-lg text-white"></iconify-icon> Exit Monument Mode`;
+                map.removeLayer(lightTileLayer);
+                darkTileLayer.addTo(map);
+                renderMarkers('monuments');
+            } else {
+                this.classList.replace('bg-indigo-600/95', 'bg-slate-900/95');
+                this.innerHTML = `<iconify-icon icon="solar:monument-linear" stroke-width="1.5" class="text-lg text-indigo-300"></iconify-icon> Enter Monument Mode`;
+                map.removeLayer(darkTileLayer);
+                lightTileLayer.addTo(map);
+                renderMarkers('all');
+            }
+        });
+
+        // Cursor toggle state
+        let cursorMode = false;
+        document.getElementById('cursor-toggle').addEventListener('click', function() {
+            cursorMode = !cursorMode;
+            const icon = this.querySelector('iconify-icon');
+            if(cursorMode) {
+                icon.classList.add('text-indigo-600');
+                document.getElementById('map').style.cursor = 'crosshair';
+            } else {
+                icon.classList.remove('text-indigo-600');
+                document.getElementById('map').style.cursor = '';
+            }
+        });
+
+    </script>
+
+</body></html>

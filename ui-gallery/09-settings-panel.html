@@ -1,0 +1,81 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#050505] text-white h-screen w-screen flex items-center justify-center p-4 sm:p-6 font-sans selection:bg-white/20 antialiased font-[Inter] overflow-hidden">
+
+    <!-- Settings Card -->
+    <div class="w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[24px] shadow-2xl overflow-hidden ring-1 ring-white/5 transform transition-all">
+        
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-white/5 flex flex-col gap-0.5">
+            <h2 class="text-xl font-semibold tracking-tight text-white/95">Settings</h2>
+            <div class="text-sm text-white/50">Manage your control center preferences</div>
+        </div>
+        
+        <!-- Options List -->
+        <div class="p-2 sm:p-3 flex flex-col gap-1">
+            
+            <!-- Voice Narration Toggle -->
+            <label class="flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-colors group cursor-pointer">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover:text-white transition-colors">
+                        <iconify-icon icon="solar:volume-loud-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-white/90">Voice Narration</div>
+                        <div class="text-xs text-white/50 mt-0.5">Auto-play audio guides</div>
+                    </div>
+                </div>
+                <div class="relative inline-flex items-center shrink-0">
+                    <input type="checkbox" class="sr-only peer" checked="">
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer-checked:bg-white transition-colors duration-200"></div>
+                    <div class="absolute left-0.5 top-0.5 bg-white peer-checked:bg-[#0a0a0a] w-5 h-5 rounded-full transition-transform duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+                </div>
+            </label>
+
+            <!-- Cursor Mode Toggle -->
+            <label class="flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-colors group cursor-pointer">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover:text-white transition-colors">
+                        <iconify-icon icon="solar:cursor-square-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-white/90">Cursor Mode</div>
+                        <div class="text-xs text-white/50 mt-0.5">Enable precise selection</div>
+                    </div>
+                </div>
+                <div class="relative inline-flex items-center shrink-0">
+                    <input type="checkbox" class="sr-only peer">
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer-checked:bg-white transition-colors duration-200"></div>
+                    <div class="absolute left-0.5 top-0.5 bg-white/70 peer-checked:bg-[#0a0a0a] w-5 h-5 rounded-full transition-transform duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+                </div>
+            </label>
+
+            <!-- Theme Toggle -->
+            <label class="flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-colors group cursor-pointer">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover:text-white transition-colors">
+                        <iconify-icon icon="solar:moon-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-white/90">Appearance</div>
+                        <div class="text-xs text-white/50 mt-0.5">Toggle light or dark theme</div>
+                    </div>
+                </div>
+                <div class="relative inline-flex items-center shrink-0">
+                    <input type="checkbox" class="sr-only peer" checked="">
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer-checked:bg-white transition-colors duration-200"></div>
+                    <div class="absolute left-0.5 top-0.5 bg-white peer-checked:bg-[#0a0a0a] w-5 h-5 rounded-full transition-transform duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+                </div>
+            </label>
+
+        </div>
+    </div>
+
+
+</body></html>

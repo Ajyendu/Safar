@@ -1,0 +1,111 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    <style>
+        @keyframes scan {
+            0%, 100% { top: 0%; opacity: 0; }
+            10%, 90% { opacity: 1; }
+            50% { top: 98%; opacity: 1; }
+        }
+        .animate-scan {
+            animation: scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        .cutout-shadow {
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85);
+        }
+    </style>
+</head>
+<body class="bg-black text-white h-screen w-screen overflow-hidden relative font-sans selection:bg-white/20 antialiased font-[Inter]">
+
+    <!-- Simulated Camera Feed Background -->
+    <div class="absolute inset-0 z-0">
+        <img src="https://images.unsplash.com/photo-1572949645841-094f3a9c4c94?q=80&amp;w=2574&amp;auto=format&amp;fit=crop" class="w-full h-full object-cover opacity-50 blur-[2px] scale-105" alt="Museum background">
+    </div>
+
+    <!-- Top Navigation Area -->
+    <div class="absolute top-0 inset-x-0 z-30 flex justify-between items-start p-5 sm:p-8 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none">
+        <div class="pointer-events-auto">
+            <button class="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                <iconify-icon icon="solar:close-circle-linear" width="22" height="22" style="stroke-width: 1.5;"></iconify-icon>
+            </button>
+        </div>
+        
+        <div class="flex flex-col items-center mt-2">
+            <div class="text-sm font-semibold tracking-tighter text-white mb-1">MUSE</div>
+            <div class="px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-xs font-medium text-white/70 uppercase tracking-widest">Scanning</span>
+            </div>
+        </div>
+
+        <div class="pointer-events-auto">
+            <button class="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                <iconify-icon icon="solar:flashlight-linear" width="22" height="22" style="stroke-width: 1.5;"></iconify-icon>
+            </button>
+        </div>
+    </div>
+
+    <!-- Scanner Reticle Overlay -->
+    <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none pb-32">
+        <div class="relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl cutout-shadow">
+            <!-- Corner Brackets -->
+            <div class="absolute top-0 left-0 w-12 h-12 border-t-[3px] border-l-[3px] border-white/90 rounded-tl-3xl"></div>
+            <div class="absolute top-0 right-0 w-12 h-12 border-t-[3px] border-r-[3px] border-white/90 rounded-tr-3xl"></div>
+            <div class="absolute bottom-0 left-0 w-12 h-12 border-b-[3px] border-l-[3px] border-white/90 rounded-bl-3xl"></div>
+            <div class="absolute bottom-0 right-0 w-12 h-12 border-b-[3px] border-r-[3px] border-white/90 rounded-br-3xl"></div>
+
+            <!-- Animated Scan Line -->
+            <div class="absolute left-4 right-4 h-[2px] bg-white shadow-[0_0_12px_2px_rgba(255,255,255,0.6)] animate-scan rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Contextual Hint (Visible behind bottom sheet partially) -->
+    <div class="absolute bottom-32 inset-x-0 z-20 flex justify-center pb-8">
+        <p class="text-sm text-white/60 font-medium tracking-wide">Align QR code within frame</p>
+    </div>
+
+    <!-- "On Scan" Success State / Bottom Sheet -->
+    <div class="absolute bottom-0 inset-x-0 z-40 w-full max-w-lg mx-auto pointer-events-auto">
+        <div class="bg-[#0a0a0a]/85 backdrop-blur-2xl border-t border-white/10 rounded-t-[32px] p-6 sm:p-8 transform transition-transform duration-500 translate-y-0 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
+            
+            <!-- Drag Handle -->
+            <div class="w-12 h-1.5 bg-white/15 rounded-full mx-auto mb-8"></div>
+            
+            <!-- Content -->
+            <div class="flex items-start gap-5 mb-8">
+                <div class="w-20 h-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 relative shadow-inner">
+                    <img src="https://images.unsplash.com/photo-1544476915-ed1370594142?q=80&amp;w=1000&amp;auto=format&amp;fit=crop" class="w-full h-full object-cover" alt="Artifact">
+                    <div class="absolute inset-0 border border-white/10 rounded-2xl mix-blend-overlay"></div>
+                </div>
+                
+                <div class="flex-1 pt-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider">Checkpoint 04</span>
+                        <iconify-icon icon="solar:check-circle-linear" width="16" height="16" class="text-indigo-400"></iconify-icon>
+                    </div>
+                    <h2 class="text-2xl font-semibold tracking-tight text-white/95 mb-2 leading-tight">The Rosetta Stone</h2>
+                    <p class="text-sm text-white/50 leading-relaxed font-normal line-clamp-2">
+                        Granodiorite stele inscribed with three versions of a decree issued in Memphis, Egypt in 196 BC.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <button class="flex-1 bg-white text-black font-semibold text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-[0.98]">
+                    <iconify-icon icon="solar:play-circle-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
+                    Play Audio Guide
+                </button>
+                <button class="px-5 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-colors text-white/80 hover:text-white active:scale-[0.98]">
+                    <iconify-icon icon="solar:map-point-linear" width="22" height="22" style="stroke-width: 1.5;"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+</body></html>

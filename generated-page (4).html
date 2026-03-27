@@ -1,0 +1,237 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monument Tour Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for the details panel */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Map Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            transform-origin: center;
+        }
+    </style>
+</head>
+<body class="antialiased bg-[#f8fafc] relative h-[100dvh] w-full overflow-hidden font-sans text-slate-900" style="font-family: 'Inter', sans-serif;">
+
+    <!-- Background Simulated Monument Map (India Gate) -->
+    <div class="absolute inset-0 z-0 select-none pointer-events-none">
+        <!-- Offset viewBox to center the monument beautifully alongside the left panel on desktop -->
+        <svg class="w-full h-full" viewBox="0 0 1200 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                    <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e2e8f0" stroke-width="0.5"></path>
+                </pattern>
+                <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#3b82f6"></stop>
+                    <stop offset="100%" stop-color="#60a5fa"></stop>
+                </linearGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)"></rect>
+            
+            <g transform="translate(700, 500)">
+                <!-- Surrounding Parks & Water bodies (Abstract) -->
+                <path d="M -150 -150 C -50 -200, 50 -200, 150 -150 C 200 -50, 200 50, 150 150 C 50 200, -50 200, -150 150 C -200 50, -200 -50, -150 -150 Z" fill="#f1f5f9" opacity="0.5"></path>
+
+                <!-- Radial Roads (C-Hexagon & Intersections) -->
+                <circle cx="0" cy="0" r="300" fill="none" stroke="#ffffff" stroke-width="24"></circle>
+                <circle cx="0" cy="0" r="120" fill="none" stroke="#ffffff" stroke-width="32"></circle>
+                
+                <!-- Kartavya Path (Horizontal) -->
+                <line x1="-500" y1="0" x2="500" y2="0" stroke="#ffffff" stroke-width="32"></line>
+                
+                <!-- Diagonal Roads -->
+                <line x1="-300" y1="-300" x2="300" y2="300" stroke="#ffffff" stroke-width="20"></line>
+                <line x1="-300" y1="300" x2="300" y2="-300" stroke="#ffffff" stroke-width="20"></line>
+                <line x1="0" y1="-400" x2="0" y2="400" stroke="#ffffff" stroke-width="20"></line>
+
+                <!-- India Gate Monument Core -->
+                <rect x="-15" y="-30" width="30" height="60" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2" rx="4"></rect>
+                <rect x="-25" y="-10" width="50" height="20" fill="#94a3b8" rx="2"></rect>
+                
+                <!-- The Canopy -->
+                <circle cx="150" cy="0" r="16" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"></circle>
+                
+                <!-- National War Memorial (Rings) -->
+                <circle cx="-150" cy="150" r="40" fill="none" stroke="#cbd5e1" stroke-width="4"></circle>
+                <circle cx="-150" cy="150" r="20" fill="none" stroke="#cbd5e1" stroke-width="2"></circle>
+
+                <!-- Active Navigation Route (Walking Path) -->
+                <path d="M -20 0 L 130 0" fill="none" stroke="url(#routeGradient)" stroke-width="6" stroke-linecap="round" stroke-dasharray="8 8" class="drop-shadow-sm"></path>
+
+                <!-- Checkpoints / Nodes -->
+                
+                <!-- 1. Amar Jawan Jyoti (Completed) -->
+                <g transform="translate(-20, 0)">
+                    <circle cx="0" cy="0" r="8" fill="#10b981" stroke="#ffffff" stroke-width="3" class="drop-shadow-sm"></circle>
+                    <text x="-12" y="-14" text-anchor="end" class="text-xs font-semibold fill-slate-600 tracking-tight">Amar Jawan Jyoti</text>
+                </g>
+
+                <!-- 2. The Canopy (Active Navigation) -->
+                <g transform="translate(150, 0)">
+                    <circle cx="0" cy="0" r="14" fill="none" stroke="#3b82f6" stroke-width="2" class="animate-pulse-ring"></circle>
+                    <circle cx="0" cy="0" r="8" fill="#3b82f6" stroke="#ffffff" stroke-width="3" class="drop-shadow-sm"></circle>
+                    <text x="12" y="-14" text-anchor="start" class="text-xs font-semibold fill-blue-600 tracking-tight">The Canopy</text>
+                </g>
+
+                <!-- 3. War Memorial (Pending) -->
+                <g transform="translate(-150, 150)">
+                    <circle cx="0" cy="0" r="6" fill="#cbd5e1" stroke="#ffffff" stroke-width="2"></circle>
+                    <text x="0" y="20" text-anchor="middle" class="text-xs font-medium fill-slate-500 tracking-tight">War Memorial</text>
+                </g>
+
+                <!-- 4. Children's Park (Pending) -->
+                <g transform="translate(180, 180)">
+                    <circle cx="0" cy="0" r="6" fill="#cbd5e1" stroke="#ffffff" stroke-width="2"></circle>
+                    <text x="0" y="20" text-anchor="middle" class="text-xs font-medium fill-slate-500 tracking-tight">Children's Park</text>
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <!-- Interactive Left Panel (Bottom Sheet on Mobile) -->
+    <div class="absolute bottom-0 left-0 right-0 md:top-4 md:bottom-4 md:left-4 md:right-auto md:w-[420px] bg-white rounded-t-3xl md:rounded-2xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] md:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.1)] border-t md:border border-slate-200/80 flex flex-col z-20 transition-transform duration-300 max-h-[90vh] md:max-h-none overflow-hidden">
+        
+        <!-- Mobile Drag Handle -->
+        <div class="w-full flex justify-center pt-3 pb-1 md:hidden bg-slate-50">
+            <div class="w-12 h-1.5 rounded-full bg-slate-200"></div>
+        </div>
+
+        <!-- Entry Header -->
+        <div class="px-6 py-4 border-b border-slate-100 flex items-start justify-between bg-slate-50/80 backdrop-blur-sm shrink-0">
+            <div>
+                <div class="flex items-center gap-1.5 mb-1">
+                    <span class="text-xs font-semibold tracking-widest text-slate-400 uppercase">MONUMENT</span>
+                    <div class="w-1 h-1 rounded-full bg-slate-300"></div>
+                    <span class="text-xs font-medium tracking-wide text-blue-500">Live Tour</span>
+                </div>
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">India Gate</h1>
+            </div>
+            <button class="w-8 h-8 mt-1 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors shadow-sm shrink-0">
+                <iconify-icon icon="solar:close-linear" class="text-lg" stroke-width="2"></iconify-icon>
+            </button>
+        </div>
+
+        <!-- Tour Progress -->
+        <div class="px-6 py-4 border-b border-slate-100 bg-white shrink-0">
+            <div class="flex justify-between items-center mb-2.5">
+                <span class="text-xs font-medium text-slate-500">Checkpoints Discovered</span>
+                <span class="text-xs font-semibold text-emerald-600 tracking-wide">1 / 4</span>
+            </div>
+            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div class="bg-emerald-500 h-full w-1/4 rounded-full transition-all duration-1000"></div>
+            </div>
+        </div>
+
+        <!-- QR Checkpoint List -->
+        <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-slate-50/30">
+            
+            <!-- Checkpoint 1: Completed -->
+            <div class="relative bg-white border border-emerald-200/80 rounded-2xl p-4 shadow-sm ring-1 ring-emerald-500/5 transition-all group">
+                <div class="absolute top-4 right-4 flex items-center gap-1.5 text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">
+                    <iconify-icon icon="solar:check-circle-linear" class="text-base"></iconify-icon>
+                    <span class="text-xs font-semibold tracking-tight">Scanned</span>
+                </div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-semibold shrink-0">1</div>
+                    <h3 class="text-base font-semibold tracking-tight text-slate-900">Amar Jawan Jyoti</h3>
+                </div>
+                <p class="text-xs text-slate-500 mb-4 pr-20 leading-relaxed">The eternal flame marking the immortal soldier. You've successfully unlocked this history module.</p>
+                <div class="flex gap-2">
+                    <button class="flex-1 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-medium border border-emerald-200/60 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2">
+                        <iconify-icon icon="solar:document-text-linear" class="text-base"></iconify-icon> View Info
+                    </button>
+                </div>
+            </div>
+
+            <!-- Checkpoint 2: Active Navigation -->
+            <div class="relative bg-white border-2 border-blue-500/30 rounded-2xl p-4 shadow-md shadow-blue-500/5 transition-all group overflow-hidden">
+                <!-- Active Indicator Strip -->
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                
+                <div class="absolute top-4 right-4 text-blue-500">
+                    <iconify-icon icon="solar:map-point-wave-linear" class="text-xl animate-pulse"></iconify-icon>
+                </div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-semibold shrink-0">2</div>
+                    <h3 class="text-base font-semibold tracking-tight text-slate-900">The Canopy</h3>
+                </div>
+                <p class="text-xs text-slate-500 mb-4 pr-10 leading-relaxed">Walk 150m East. Scan the QR code located near the 73-foot cupola to unlock the next chapter.</p>
+                <div class="flex gap-2">
+                    <button class="flex-1 py-2.5 px-3 rounded-xl bg-white text-slate-700 text-sm font-medium border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">
+                        View Info
+                    </button>
+                    <button class="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 text-white text-sm font-medium shadow-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+                        <iconify-icon icon="solar:routing-2-linear" class="text-base opacity-90"></iconify-icon> Navigate
+                    </button>
+                </div>
+            </div>
+
+            <!-- Checkpoint 3: Locked/Pending -->
+            <div class="relative bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm opacity-80 hover:opacity-100 transition-all group">
+                <div class="absolute top-4 right-4 text-slate-300">
+                    <iconify-icon icon="solar:lock-keyhole-linear" class="text-lg"></iconify-icon>
+                </div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-semibold shrink-0">3</div>
+                    <h3 class="text-base font-semibold tracking-tight text-slate-700">National War Memorial</h3>
+                </div>
+                <p class="text-xs text-slate-400 mb-4 pr-10 leading-relaxed">Complete previous checkpoints to reveal exact navigation path.</p>
+                <div class="flex gap-2">
+                    <button class="flex-1 py-2 px-3 rounded-xl bg-slate-50 text-slate-500 text-sm font-medium border border-slate-200/60 hover:bg-slate-100 transition-colors flex items-center justify-center gap-2">
+                        <iconify-icon icon="solar:info-circle-linear" class="text-base"></iconify-icon> Preview Info
+                    </button>
+                    <button class="flex-1 py-2 px-3 rounded-xl bg-white text-slate-400 text-sm font-medium border border-slate-100 cursor-not-allowed flex items-center justify-center gap-2">
+                        Navigate
+                    </button>
+                </div>
+            </div>
+
+            <!-- Checkpoint 4: Locked/Pending -->
+            <div class="relative bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm opacity-80 hover:opacity-100 transition-all group">
+                <div class="absolute top-4 right-4 text-slate-300">
+                    <iconify-icon icon="solar:lock-keyhole-linear" class="text-lg"></iconify-icon>
+                </div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-semibold shrink-0">4</div>
+                    <h3 class="text-base font-semibold tracking-tight text-slate-700">Children's Park</h3>
+                </div>
+                <p class="text-xs text-slate-400 mb-4 pr-10 leading-relaxed">The final stop of the tour. Unlocks after the War Memorial.</p>
+                <div class="flex gap-2">
+                    <button class="flex-1 py-2 px-3 rounded-xl bg-slate-50 text-slate-500 text-sm font-medium border border-slate-200/60 hover:bg-slate-100 transition-colors flex items-center justify-center gap-2">
+                        <iconify-icon icon="solar:info-circle-linear" class="text-base"></iconify-icon> Preview Info
+                    </button>
+                    <button class="flex-1 py-2 px-3 rounded-xl bg-white text-slate-400 text-sm font-medium border border-slate-100 cursor-not-allowed flex items-center justify-center gap-2">
+                        Navigate
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom Spacer -->
+            <div class="h-4"></div>
+        </div>
+    </div>
+
+
+</body></html>
