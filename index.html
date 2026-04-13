@@ -54,6 +54,15 @@
       50% { top: 98%; opacity: 1; }
     }
     .animate-scan-qr { animation: scan-qr 3s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+    /* React mount: auth modal = transparent over landing; full app = solid */
+    #root.safar-react-modal {
+      background: transparent !important;
+      pointer-events: auto;
+    }
+    #root.safar-react-full {
+      background: #0c0f14;
+      min-height: 100vh;
+    }
     .cutout-shadow-qr { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85); }
     .metro-scroll::-webkit-scrollbar { width: 6px; }
     .metro-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
@@ -262,7 +271,11 @@
 
   <header class="pointer-events-auto absolute left-4 right-4 top-4 z-[100] flex flex-wrap items-start justify-between gap-2 md:left-6 md:right-6 md:top-6">
     <div id="map-brand-chip" class="flex items-center rounded-full bg-white/90 px-4 py-2 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-2xl pointer-events-auto">
-      <span class="text-sm sm:text-base font-semibold tracking-[0.18em] text-slate-900 uppercase leading-none">Safar</span>
+      <svg viewBox="0 0 48 48" class="h-5 w-5 text-slate-900" fill="none" aria-hidden="true">
+        <path d="M24 8c-6 0-10 5-12 11 2-3 6-5 10-5 5 0 9 3 11 8 2-2 3-5 3-8 0-3-1-6-4-6h-8z" fill="currentColor" fill-opacity="0.92" />
+        <path d="M24 40c6 0 10-5 12-11-2 3-6 5-10 5-5 0-9-3-11-8-2 2-3 5-3 8 0 3 1 6 4 6h8z" fill="currentColor" fill-opacity="0.75" />
+      </svg>
+      <span class="ml-2 text-sm sm:text-base font-semibold tracking-[0.18em] text-slate-900 uppercase leading-none">Safar</span>
     </div>
 
     <div id="map-top-controls" class="pointer-events-auto ml-auto flex flex-wrap items-center gap-2">
@@ -640,7 +653,7 @@
     <div class="pointer-events-auto relative z-40 hidden p-6 pt-0"></div>
   </div>
 
-  <!-- Settings: layout from generated-page (7).html; IDs wired to travelr-combined.js -->
+  <!-- Settings: layout originated from archive/scratch-html/generated-page (7).html; IDs wired to travelr-combined.js -->
   <div id="settings-overlay" class="fixed inset-0 z-[1300] hidden items-center justify-center bg-black/60 p-4 backdrop-blur-sm sm:p-6 pointer-events-auto">
     <div class="w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 bg-[#0a0a0a]/95 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl transform transition-all">
       <div class="flex items-center justify-between border-b border-white/5 px-5 py-4">
@@ -664,22 +677,6 @@
             <input id="settings-voice" type="checkbox" class="peer sr-only">
             <div class="h-6 w-11 rounded-full border border-transparent bg-white/10 transition-colors duration-300 peer-checked:border-white peer-checked:bg-white"></div>
             <div class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 peer-checked:translate-x-5 peer-checked:bg-[#0a0a0a]"></div>
-          </label>
-        </div>
-        <div class="group flex items-center justify-between rounded-2xl p-3 transition-colors hover:bg-white/5">
-          <div class="flex items-center gap-3.5">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/5 text-white/70 transition-colors group-hover:text-white">
-              <iconify-icon icon="solar:cursor-square-linear" width="20" height="20" style="stroke-width: 1.5;"></iconify-icon>
-            </div>
-            <div>
-              <div class="text-sm font-medium text-white/90">Cursor Mode</div>
-              <div class="mt-0.5 text-xs text-white/50">Enable precise selection</div>
-            </div>
-          </div>
-          <label class="relative inline-flex shrink-0 cursor-pointer items-center">
-            <input id="settings-cursor" type="checkbox" class="peer sr-only">
-            <div class="h-6 w-11 rounded-full border border-transparent bg-white/10 transition-colors duration-300 peer-checked:border-white peer-checked:bg-white"></div>
-            <div class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white/70 shadow-sm transition-transform duration-300 peer-checked:translate-x-5 peer-checked:bg-[#0a0a0a]"></div>
           </label>
         </div>
         <div class="group flex items-center justify-between rounded-2xl p-3 transition-colors hover:bg-white/5">
@@ -721,18 +718,19 @@
   <section id="home-overlay" class="fixed inset-0 z-[90] overflow-y-auto overflow-x-hidden bg-slate-50 text-slate-800 antialiased selection:bg-orange-200 selection:text-orange-900 transition-opacity duration-300" style="font-family: 'Inter', sans-serif;">
     <!-- Navigation -->
       <nav class="fixed top-0 w-full z-[91] transition-all duration-300 bg-white/60 backdrop-blur-lg border-b border-white/20">
-          <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-              <div class="text-xl font-semibold tracking-widest text-slate-900 uppercase" style="letter-spacing: 0.2em;">
-                  Safar
+          <div class="relative mx-auto flex h-20 max-w-7xl items-center px-6">
+              <div class="relative z-10 flex items-center gap-2 text-xl font-semibold tracking-widest text-slate-900 uppercase" style="letter-spacing: 0.2em;">
+                <svg viewBox="0 0 48 48" class="h-7 w-7 text-slate-900" fill="none" aria-hidden="true">
+                  <path d="M24 8c-6 0-10 5-12 11 2-3 6-5 10-5 5 0 9 3 11 8 2-2 3-5 3-8 0-3-1-6-4-6h-8z" fill="currentColor" fill-opacity="0.92" />
+                  <path d="M24 40c6 0 10-5 12-11-2 3-6 5-10 5-5 0-9-3-11-8-2 2-3 5-3 8 0 3 1 6 4 6h8z" fill="currentColor" fill-opacity="0.75" />
+                </svg>
+                <span>Safar</span>
               </div>
-              <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+              <div class="absolute left-1/2 top-1/2 z-[9] hidden -translate-x-1/2 -translate-y-1/2 md:flex items-center gap-8 text-sm font-medium text-slate-600">
                   <a href="#features" class="hover:text-slate-900 transition-colors">Features</a>
                   <a href="#destinations" class="hover:text-slate-900 transition-colors">Destinations</a>
                   <a href="#how-it-works" class="hover:text-slate-900 transition-colors">How it works</a>
-            </div>
-              <button type="button" id="home-open-map" class="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-medium hover:bg-slate-800 transition-all shadow-md shadow-slate-900/10 hover:shadow-lg hover:shadow-slate-900/20">
-                  Get the App
-              </button>
+              </div>
             </div>
       </nav>
 
@@ -843,7 +841,7 @@
               <div class="destination-flip-card snap-start shrink-0 relative w-72 md:w-96 aspect-[3/4] rounded-3xl">
                   <div class="destination-flip-inner">
                       <div class="destination-face destination-face-front group">
-                          <img src="india gate/INDIA GATE.jpg" alt="India Gate" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                          <img src="/assets/images/places/india gate/INDIA GATE.jpg" alt="India Gate" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
                           <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
                           <div class="absolute bottom-0 left-0 p-8 w-full">
                               <div class="flex justify-between items-end">
@@ -1016,8 +1014,12 @@
           <div class="max-w-7xl mx-auto px-6">
               <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
                   <div>
-                      <div class="text-2xl font-semibold tracking-widest text-slate-900 uppercase mb-4" style="letter-spacing: 0.2em;">
-                          Safar
+                      <div class="flex items-center gap-3 text-2xl font-semibold tracking-widest text-slate-900 uppercase mb-4" style="letter-spacing: 0.2em;">
+                          <svg viewBox="0 0 48 48" class="h-9 w-9 text-slate-900" fill="none" aria-hidden="true">
+                            <path d="M24 8c-6 0-10 5-12 11 2-3 6-5 10-5 5 0 9 3 11 8 2-2 3-5 3-8 0-3-1-6-4-6h-8z" fill="currentColor" fill-opacity="0.92" />
+                            <path d="M24 40c6 0 10-5 12-11-2 3-6 5-10 5-5 0-9-3-11-8-2 2-3 5-3 8 0 3 1 6 4 6h8z" fill="currentColor" fill-opacity="0.75" />
+                          </svg>
+                          <span>Safar</span>
                       </div>
                       <p class="text-slate-500 text-sm font-light max-w-xs">Elevating travel through intelligent design and immersive technology.</p>
                   </div>
@@ -1045,7 +1047,9 @@
       </footer>
   </section>
 
-    <script src="monument-internal.js"></script>
-  <script src="travelr-combined.js"></script>
+    <div id="root" class="hidden fixed inset-0 z-[200] min-h-screen"></div>
+    <script src="/assets/js/safar-react-loader.js"></script>
+    <script src="/assets/js/monument-internal.js"></script>
+  <script src="/assets/js/travelr-combined.js"></script>
   </body>
 </html>

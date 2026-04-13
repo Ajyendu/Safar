@@ -48,9 +48,27 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const requestOtp = async (payload) => {
+    return api.requestOtp(payload);
+  };
+
+  const verifyOtp = async (payload) => {
+    const data = await api.verifyOtp(payload);
+    localStorage.setItem("token", data.token);
+    setUser(data.user);
+    return data.user;
+  };
+
+  const googleAuth = async (credential) => {
+    const data = await api.googleAuth({ credential });
+    localStorage.setItem("token", data.token);
+    setUser(data.user);
+    return data.user;
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, refresh }}
+      value={{ user, loading, login, register, requestOtp, verifyOtp, googleAuth, logout, refresh }}
     >
       {children}
     </AuthContext.Provider>

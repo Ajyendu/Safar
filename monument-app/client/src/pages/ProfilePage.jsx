@@ -12,9 +12,14 @@ export function ProfilePage() {
     return (
       <div className="mx-auto max-w-md p-8">
         <p className="text-zinc-400">You are not signed in.</p>
-        <Link to="/login" className="mt-4 inline-block text-accent hover:underline">
-          Sign in
-        </Link>
+        <p className="mt-4 flex flex-wrap gap-4 text-sm">
+          <Link to="/login" className="text-accent hover:underline">
+            Sign in
+          </Link>
+          <Link to="/signup" className="text-zinc-400 hover:text-white hover:underline">
+            Create account
+          </Link>
+        </p>
       </div>
     );
   }

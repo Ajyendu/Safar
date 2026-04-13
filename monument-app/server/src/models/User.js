@@ -5,12 +5,18 @@ const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
     },
-    passwordHash: { type: String, required: true },
+    phone: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    passwordHash: { type: String, default: "" },
     displayName: { type: String, trim: true, default: "" },
     /** Monument slugs the user has entered in Monument Mode */
     visitedMonuments: [{ type: String }],
@@ -26,6 +32,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.methods.comparePassword = function comparePassword(plain) {
+  if (!this.passwordHash) return false;
   return bcrypt.compare(plain, this.passwordHash);
 };
 
