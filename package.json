@@ -1,0 +1,12 @@
+{
+  "name": "safar",
+  "private": true,
+  "description": "Safar combined: API + static landing (index.html, /assets, /pages)",
+  "scripts": {
+    "combined": "npm run dev --prefix monument-app/server",
+    "dev": "npm run combined",
+    "install:all": "npm install --prefix monument-app/server && npm install --prefix monument-app/client",
+    "build:client": "npm run build --prefix monument-app/client",
+    "dev:client": "npm run dev --prefix monument-app/client"
+  }
+}

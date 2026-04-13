@@ -1,4 +1,7 @@
 import "dotenv/config";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import express from "express";
 import morgan from "morgan";
@@ -29,6 +32,23 @@ app.use("/api/auth", authRoutes);
 app.use("/api/monuments", monumentRoutes);
 app.use("/api/qr", qrRoutes);
 app.use("/api/admin", adminRoutes);
+
+/** Repo root (Safar/) — same process serves API + static landing (“combined”). */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const safarRepoRoot = path.resolve(__dirname, "../../..");
+const safarIndex = path.join(safarRepoRoot, "index.html");
+if (fs.existsSync(safarIndex)) {
+  app.use(express.static(safarRepoRoot, { fallthrough: true }));
+  console.log(`[server] Combined static site → http://localhost:${port}/ (from ${safarRepoRoot})`);
+}
+
+app.use((req, res, _next) => {
+  if (req.path.startsWith("/api")) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.status(404).send("Not found");
+});
 
 app.use((err, req, res, next) => {
   console.error(err);
