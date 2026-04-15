@@ -648,6 +648,13 @@
     darkUi: false,
     mapStyle: "default",
     activeRoute: null,
+    /** Route alternatives currently drawn for regular navigation mode. */
+    navAltRouteLayers: [],
+    /** Selected route geometry (lat,lng tuples) for live progress/off-route checks. */
+    navSelectedRouteCoords: null,
+    navSelectedRouteDistanceM: null,
+    navSelectedRouteDurationSec: null,
+    navLastAutoRerouteMs: 0,
     routingControl: null,
     travelMetricsAbort: null,
     travelMetricsFromMap: false,
@@ -675,12 +682,18 @@
     /** Cached OSRM / metro step lines; applied when entering live navigation. */
     /** @type {string[]|null} */
     navLastDirectionPhrases: null,
+    /** Turn-by-turn maneuver points for current selected route. */
+    navStepPoints: null,
+    navCurrentStepIndex: 0,
     /** Smoothed map bearing (deg) during live nav; null = north-up. */
     navSmoothedBearing: null,
     /** @type {[number, number]|null} last fix for course-from-movement */
     navPrevGpsForBearing: null,
     /** Zoom level before live nav; restored when stopping. */
     navPreLiveZoom: null,
+    liveNavMapControlsLocked: false,
+    liveNavPrevMapControlState: null,
+    liveNavAnchorIntervalId: null,
     /** Prevent repeated arrival prompts for the same destination. */
     navArrivalHandledPlaceSlug: null,
     /** Prevent repeated India Gate monument prompt while remaining nearby. */
@@ -796,11 +809,17 @@
   const TRAVEL = {
     earthRadiusM: 6371000,
     /** Live nav: fixed screen position for user icon — fraction of map height from top. */
-    navUserScreenYFrac: 0.5,
+    // Keep user marker in lower-center area like turn-by-turn apps.
+    navUserScreenYFrac: 0.72,
     /** Zoom when live navigation starts; restored on stop. */
-    liveNavZoom: 19,
+    // Street-level zoom for live navigation.
+    liveNavZoom: 20,
     /** Consider destination reached when straight-line distance is within this radius. */
     navArrivalRadiusM: 40,
+    /** If user drifts this far from selected route, trigger automatic reroute. */
+    navOffRouteThresholdM: 55,
+    /** Minimum time between automatic reroutes. */
+    navAutoRerouteCooldownMs: 9000,
     /** Fallback proximity prompt radius for India Gate monument mode. */
     indiaGatePromptRadiusM: 150,
     /** Auto-clear active checkpoint when user is this close. */
@@ -819,11 +838,22 @@
       { lat: 28.609525, lng: 77.23092 },
       { lat: 28.611309, lng: 77.227827 },
     ],
+    /** ~4.8 km/h walking */
     walkMPerMin: 80,
-    driveMPerMinCard: 200,
-    cycleMPerMin: 167,
+    /** ~30 km/h effective city car speed (traffic + signals blended) */
+    driveMPerMinCard: 500,
+    /** ~18 km/h bicycle fallback (not 2W motorbike) */
+    cycleMPerMin: 300,
+    /** ~24 km/h first/last-mile car leg speed */
     driveMPerMinLeg: 400,
-    metroSpeedKmh: 30,
+    /** ~32 km/h two-wheeler effective speed */
+    twoWMPerMin: 533,
+    /** Metro in-train effective speed */
+    metroSpeedKmh: 33,
+    /** Metro station wait/buffer (platform + access variability) */
+    metroBaseWaitMin: 6,
+    /** Per interchange penalty estimate */
+    metroInterchangePenaltyMin: 4,
     minDirectDistForMetroM: 2000,
   };
   const MONUMENT_RATINGS_STORAGE_KEY = "safar_monument_ratings_v1";
@@ -839,6 +869,90 @@
       Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+
+  /** Approx local XY meters around lat0 for fast route progress calculations. */
+  function toLocalMeters(lat, lng, lat0) {
+    const kLat = 111320;
+    const kLng = Math.cos((lat0 * Math.PI) / 180) * 111320;
+    return { x: lng * kLng, y: lat * kLat };
+  }
+
+  /**
+   * Returns distance to route + remaining route distance from projected point.
+   * @param {[number, number]} pos [lat, lng]
+   * @param {[number, number][]} coords route coords
+   */
+  function routeProgressEstimate(pos, coords) {
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    const lat0 = pos[0];
+    const p = toLocalMeters(pos[0], pos[1], lat0);
+    let best = { d: Infinity, segIdx: 0, t: 0 };
+    for (let i = 1; i < coords.length; i++) {
+      const aLL = coords[i - 1];
+      const bLL = coords[i];
+      const a = toLocalMeters(aLL[0], aLL[1], lat0);
+      const b = toLocalMeters(bLL[0], bLL[1], lat0);
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const ab2 = abx * abx + aby * aby;
+      const apx = p.x - a.x;
+      const apy = p.y - a.y;
+      const tRaw = ab2 > 0 ? (apx * abx + apy * aby) / ab2 : 0;
+      const t = Math.max(0, Math.min(1, tRaw));
+      const qx = a.x + abx * t;
+      const qy = a.y + aby * t;
+      const dx = p.x - qx;
+      const dy = p.y - qy;
+      const d = Math.hypot(dx, dy);
+      if (d < best.d) best = { d, segIdx: i - 1, t };
+    }
+
+    let remainingM = 0;
+    const segA = coords[best.segIdx];
+    const segB = coords[best.segIdx + 1];
+    const projected = [
+      segA[0] + (segB[0] - segA[0]) * best.t,
+      segA[1] + (segB[1] - segA[1]) * best.t,
+    ];
+    const segLen = haversineDistanceMeters(segA[0], segA[1], segB[0], segB[1]);
+    remainingM += segLen * (1 - best.t);
+    for (let i = best.segIdx + 2; i < coords.length; i++) {
+      const a = coords[i - 1];
+      const b = coords[i];
+      remainingM += haversineDistanceMeters(a[0], a[1], b[0], b[1]);
+    }
+    return {
+      distanceToRouteM: best.d,
+      remainingM,
+      segIdx: best.segIdx,
+      segT: best.t,
+      projected,
+    };
+  }
+
+  /** Route-forward bearing (lookahead along selected path), so path stays toward screen top. */
+  function routeForwardBearing(loc, coords, progress, lookaheadM = 120) {
+    if (!Array.isArray(coords) || coords.length < 2 || !progress) return null;
+    let remaining = Math.max(1, lookaheadM);
+    let cursor = progress.projected || loc;
+    let idx = progress.segIdx ?? 0;
+    while (idx < coords.length - 1 && remaining > 0) {
+      const a = cursor;
+      const b = coords[idx + 1];
+      const seg = haversineDistanceMeters(a[0], a[1], b[0], b[1]);
+      if (seg <= remaining) {
+        remaining -= seg;
+        cursor = b;
+        idx += 1;
+        continue;
+      }
+      const t = remaining / Math.max(seg, 0.001);
+      cursor = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      remaining = 0;
+      break;
+    }
+    return bearingDegrees(loc[0], loc[1], cursor[0], cursor[1]);
   }
 
   /** Ray-casting point in polygon test for [{lat,lng}, ...] vertices. */
@@ -1828,6 +1942,66 @@
     }
   }
 
+  function setLiveNavMapControlsLock(enabled) {
+    if (!state.map) return;
+    const m = state.map;
+    if (enabled) {
+      if (!state.liveNavMapControlsLocked) {
+        state.liveNavPrevMapControlState = {
+          dragging: !!(m.dragging && m.dragging.enabled()),
+          touchZoom: !!(m.touchZoom && m.touchZoom.enabled()),
+          scrollWheelZoom: !!(m.scrollWheelZoom && m.scrollWheelZoom.enabled()),
+          doubleClickZoom: !!(m.doubleClickZoom && m.doubleClickZoom.enabled()),
+          boxZoom: !!(m.boxZoom && m.boxZoom.enabled()),
+          keyboard: !!(m.keyboard && m.keyboard.enabled()),
+        };
+      }
+      if (m.dragging) m.dragging.disable();
+      if (m.touchZoom) m.touchZoom.disable();
+      if (m.scrollWheelZoom) m.scrollWheelZoom.disable();
+      if (m.doubleClickZoom) m.doubleClickZoom.disable();
+      if (m.boxZoom) m.boxZoom.disable();
+      if (m.keyboard) m.keyboard.disable();
+      state.liveNavMapControlsLocked = true;
+      return;
+    }
+
+    const prev = state.liveNavPrevMapControlState || {};
+    if (m.dragging && prev.dragging) m.dragging.enable();
+    if (m.touchZoom && prev.touchZoom) m.touchZoom.enable();
+    if (m.scrollWheelZoom && prev.scrollWheelZoom) m.scrollWheelZoom.enable();
+    if (m.doubleClickZoom && prev.doubleClickZoom) m.doubleClickZoom.enable();
+    if (m.boxZoom && prev.boxZoom) m.boxZoom.enable();
+    if (m.keyboard && prev.keyboard) m.keyboard.enable();
+    state.liveNavMapControlsLocked = false;
+    state.liveNavPrevMapControlState = null;
+  }
+
+  function setLiveNavAnchorLoop(enabled) {
+    if (enabled) {
+      if (state.liveNavAnchorIntervalId != null) return;
+      state.liveNavAnchorIntervalId = window.setInterval(() => {
+        if (!isLiveNavigationActive() || !state.map) return;
+        try {
+          const z = liveNavigationTargetZoom();
+          state.map.setView(userLatLng(), z, { animate: false });
+          lockUserIconToScreenAnchor(state.map, userLatLng(), TRAVEL.navUserScreenYFrac);
+        } catch (_e) {
+          /* ignore */
+        }
+      }, 220);
+      return;
+    }
+    if (state.liveNavAnchorIntervalId != null) {
+      try {
+        window.clearInterval(state.liveNavAnchorIntervalId);
+      } catch (_e) {
+        /* ignore */
+      }
+      state.liveNavAnchorIntervalId = null;
+    }
+  }
+
   function formatDistanceMeters(meters) {
     if (!isFinite(meters)) return "—";
     if (meters >= 1000) return (meters / 1000).toFixed(2) + " km";
@@ -1933,7 +2107,8 @@
       let coords = await fetchOsrmGeoJsonLine(fromLat, fromLng, toLat, toLng, "foot");
       if (!coords) coords = lineFallback;
       const distanceM = r ? r.distanceM : straight;
-      const durationSec = r ? r.durationSec : (straight / TRAVEL.walkMPerMin) * 60;
+      const durationSec =
+        estimatedDurationMinutesForMode(distanceM, "walk", r ? r.durationSec : null, false) * 60;
       return { coords, distanceM, durationSec, humanLabel: "walk" };
     }
 
@@ -1942,7 +2117,8 @@
       let coords = await fetchOsrmGeoJsonLine(fromLat, fromLng, toLat, toLng, "driving");
       if (!coords) coords = lineFallback;
       const distanceM = r ? r.distanceM : straight;
-      const durationSec = r ? r.durationSec : (straight / TRAVEL.driveMPerMinCard) * 60;
+      const durationSec =
+        estimatedDurationMinutesForMode(distanceM, "car", r ? r.durationSec : null, false) * 60;
       return { coords, distanceM, durationSec, humanLabel: "car" };
     }
 
@@ -1960,10 +2136,10 @@
       coords = drv || lineFallback;
     }
     const distanceM = r ? r.distanceM : straight;
-    let durationSec = r ? r.durationSec : (straight / TRAVEL.cycleMPerMin) * 60;
+    let durationSec =
+      estimatedDurationMinutesForMode(distanceM, "2w", r ? r.durationSec : null, humanLabel === "2W road") * 60;
     if (humanLabel === "2W road") {
-      const twoW_Ms = 42 / 3.6;
-      durationSec = distanceM / twoW_Ms;
+      durationSec = estimatedDurationMinutesForMode(distanceM, "2w", null, true) * 60;
     }
     return { coords, distanceM, durationSec, humanLabel };
   }
@@ -1971,8 +2147,29 @@
   function metroLegStatsPhrase(leg) {
     if (leg.humanLabel === "walk") return "walk";
     if (leg.humanLabel === "car") return "car";
-    if (leg.humanLabel === "2W road") return "2W (road ~42 km/h)";
+    if (leg.humanLabel === "2W road") return "2W (road estimate)";
     return "bike";
+  }
+
+  function selectedLegModeLabel(mode) {
+    if (mode === "walk") return "walk";
+    if (mode === "car") return "car";
+    return "2W";
+  }
+
+  function renderMetroLegModeText(selectedMode, resolvedLeg) {
+    const chosen = selectedLegModeLabel(selectedMode);
+    const resolved = metroLegStatsPhrase(resolvedLeg);
+    if (selectedMode === "2w" && resolvedLeg && resolvedLeg.humanLabel === "2W road") {
+      return "2W (road fallback)";
+    }
+    if (selectedMode === "2w" && resolved === "bike") {
+      return "2W (bike path)";
+    }
+    if (resolved && chosen.toLowerCase() !== resolved.toLowerCase()) {
+      return `${chosen} via ${resolved}`;
+    }
+    return chosen;
   }
 
   function osrmStepToPhrase(step) {
@@ -2018,6 +2215,60 @@
   }
 
   /**
+   * Fetch multiple OSRM route alternatives and normalize them.
+   * @returns {Promise<Array<{distanceM:number,durationSec:number,coords:[number,number][],phrases:string[]}>|null>}
+   */
+  async function fetchOsrmRouteAlternatives(lat1, lng1, lat2, lng2, profile, mode, signal) {
+    let profiles;
+    if (profile === "foot") profiles = ["foot", "walking"];
+    else if (profile === "bike") profiles = ["bike", "cycling"];
+    else profiles = [profile];
+
+    for (let i = 0; i < profiles.length; i++) {
+      const p = profiles[i];
+      const coords = `${lng1},${lat1};${lng2},${lat2}`;
+      const url = `${OSRM_ROUTE_BASE}/${p}/${coords}?overview=full&geometries=geojson&steps=true&alternatives=true`;
+      try {
+        const r = await fetch(url, { signal: signal || undefined, mode: "cors" });
+        if (!r.ok) continue;
+        const j = await r.json();
+        if (j.code !== "Ok" || !Array.isArray(j.routes) || !j.routes.length) continue;
+        const out = j.routes
+          .map((route) => {
+            const line = route.geometry && route.geometry.coordinates;
+            if (!Array.isArray(line) || !line.length) return null;
+            const points = line.map((c) => [c[1], c[0]]);
+            const steps = route.legs && route.legs[0] && route.legs[0].steps ? route.legs[0].steps : [];
+            const stepPoints = [];
+            const phrases = [];
+            steps.forEach((s) => {
+              const t = osrmStepToPhrase(s);
+              if (!t) return;
+              const loc = s && s.maneuver && Array.isArray(s.maneuver.location) ? s.maneuver.location : null;
+              if (loc && loc.length === 2) {
+                stepPoints.push([loc[1], loc[0]]);
+                phrases.push(t);
+              }
+            });
+            return {
+              distanceM: route.distance,
+              durationSec: route.duration,
+              coords: points,
+              phrases,
+              stepPoints,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.distanceM - b.distanceM);
+        if (out.length) return out.slice(0, 3);
+      } catch (_e) {
+        /* try next profile */
+      }
+    }
+    return null;
+  }
+
+  /**
    * Walking (foot), four-wheeler (driving), two-wheeler (bike when available; else driving length + faster ETA),
    * metro (foot legs to/from nearest stations + straight-line inter-station distance + train time estimate).
    */
@@ -2037,15 +2288,32 @@
     if (!isPlausibleRouteForMode(driving, "car")) driving = null;
     if (!isPlausibleRouteForMode(bike, "bike")) bike = null;
 
-    let twoWheeler = bike;
-    let twoWheelerNote = "Via OSRM bicycle / narrow-vehicle path";
+    let footNote = "Via OSRM walking path";
+    if (!foot && driving) {
+      // If walking profile is unavailable, prefer real road distance over straight-line.
+      foot = {
+        distanceM: driving.distanceM,
+        durationSec: estimatedDurationMinutesForMode(driving.distanceM, "walk", null, false) * 60,
+      };
+      footNote = "Walking path unavailable · using road distance estimate";
+    } else if (!foot) {
+      footNote = "Walking route unavailable · using straight-line estimate";
+    }
+
+    let twoWheeler = bike
+      ? {
+          distanceM: bike.distanceM,
+          // Keep 2W ETA distinct from car by always using 2W speed model.
+          durationSec: estimatedDurationMinutesForMode(bike.distanceM, "2w", null, false) * 60,
+        }
+      : null;
+    let twoWheelerNote = "Bike/cycling path distance · 2W speed estimate";
     if (!twoWheeler && driving) {
-      const twoW_Ms = 42 / 3.6;
       twoWheeler = {
         distanceM: driving.distanceM,
-        durationSec: driving.distanceM / twoW_Ms,
+        durationSec: estimatedDurationMinutesForMode(driving.distanceM, "2w", null, true) * 60,
       };
-      twoWheelerNote = "Same road distance as car · time ~42 km/h (2W estimate)";
+      twoWheelerNote = "Bike route unavailable · using road distance with 2W speed estimate";
     }
 
     let metro = null;
@@ -2062,7 +2330,10 @@
       const firstSec = firstLeg ? firstLeg.durationSec : metroBase.firstMileWalkMin * 60;
       const lastSec = lastLeg ? lastLeg.durationSec : metroBase.lastMileWalkMin * 60;
       const metroRideM = metroBase.betweenM;
-      const metroRideSec = metroBase.metroTimeMin * 60;
+      const betweenKm = metroBase.betweenM / 1000;
+      const interchanges = Math.max(0, Math.round(betweenKm / 12) - 1);
+      const waitSec = (TRAVEL.metroBaseWaitMin + interchanges * TRAVEL.metroInterchangePenaltyMin) * 60;
+      const metroRideSec = metroBase.metroTimeMin * 60 + waitSec;
       metro = {
         fromStation: metroBase.fromStation,
         toStation: metroBase.toStation,
@@ -2074,11 +2345,13 @@
         lastLeg,
         totalDistanceM: firstM + metroRideM + lastM,
         totalDurationSec: firstSec + metroRideSec + lastSec,
+        interchanges,
       };
     }
 
     return {
       foot,
+      footNote,
       car: driving,
       twoWheeler,
       twoWheelerNote,
@@ -2088,6 +2361,37 @@
   }
 
   let travelMetricsReqSeq = 0;
+  let navRouteReqSeq = 0;
+  let metroRouteReqSeq = 0;
+
+  /** ETA policy by user mode so durations don't collapse to identical values. */
+  function estimatedDurationMinutesForMode(distanceM, mode, osrmDurationSec, twFallback) {
+    if (!isFinite(distanceM) || distanceM <= 0) return 0;
+    const osrmMin = isFinite(osrmDurationSec) && osrmDurationSec > 0 ? osrmDurationSec / 60 : null;
+    const osrmSpeedKmh = osrmMin ? (distanceM / 1000) / (osrmMin / 60) : null;
+
+    if (mode === "walk") {
+      const est = Math.max(1, Math.round(distanceM / TRAVEL.walkMPerMin));
+      if (osrmMin && osrmSpeedKmh >= 2 && osrmSpeedKmh <= 8.5) return Math.max(1, Math.round(osrmMin));
+      return est;
+    }
+
+    if (mode === "car") {
+      const est = Math.max(1, Math.round(distanceM / TRAVEL.driveMPerMinCard));
+      if (osrmMin && osrmSpeedKmh >= 8 && osrmSpeedKmh <= 140) return Math.max(1, Math.round(osrmMin));
+      return est;
+    }
+
+    // 2W: ALWAYS use dedicated 2W speed model so it never collapses into car timing.
+    if (mode === "2w" || twFallback) {
+      return Math.max(1, Math.round(distanceM / TRAVEL.twoWMPerMin));
+    }
+
+    // Bicycle-only fallback path.
+    const bikeEst = Math.max(1, Math.round(distanceM / TRAVEL.cycleMPerMin));
+    if (osrmMin && osrmSpeedKmh >= 6 && osrmSpeedKmh <= 35) return Math.max(1, Math.round(osrmMin));
+    return bikeEst;
+  }
 
   let _metroStationListCache = null;
   function metroStationsList() {
@@ -2142,14 +2446,17 @@
       to.station.coords[0],
     );
     const metroTimeMin = Math.max(
-      6,
-      Math.round((betweenM / 1000 / TRAVEL.metroSpeedKmh) * 60) + Math.round(betweenM / 9000),
+      5,
+      Math.round((betweenM / 1000 / TRAVEL.metroSpeedKmh) * 60) + Math.round(betweenM / 10000),
     );
     const firstMileWalkMin = Math.round(firstMileM / TRAVEL.walkMPerMin);
     const firstMileDriveMin = Math.round(firstMileM / TRAVEL.driveMPerMinLeg);
     const lastMileWalkMin = Math.round(lastMileM / TRAVEL.walkMPerMin);
     const lastMileDriveMin = Math.round(lastMileM / TRAVEL.driveMPerMinLeg);
-    const totalEstimateMin = firstMileWalkMin + metroTimeMin + lastMileWalkMin;
+    const betweenKm = betweenM / 1000;
+    const interchanges = Math.max(0, Math.round(betweenKm / 12) - 1);
+    const waitMin = TRAVEL.metroBaseWaitMin + interchanges * TRAVEL.metroInterchangePenaltyMin;
+    const totalEstimateMin = firstMileWalkMin + metroTimeMin + waitMin + lastMileWalkMin;
 
     return {
       fromStation: from.station,
@@ -2161,6 +2468,8 @@
       lastMileWalkMin,
       lastMileDriveMin,
       metroTimeMin,
+      interchanges,
+      waitMin,
       totalEstimateMin,
       betweenM,
     };
@@ -2205,6 +2514,7 @@
     const ul = userLatLng();
     const d = haversineDistanceMeters(ul[0], ul[1], place.lat, place.lng);
     const foot = routed?.foot ?? null;
+    const footNote = routed?.footNote ?? "";
     const car = routed?.car ?? null;
     const tw = routed?.twoWheeler ?? null;
     const twNote = routed?.twoWheelerNote ?? "";
@@ -2216,7 +2526,9 @@
       : formatDurationMinutes(Math.round(walkBaseM / TRAVEL.walkMPerMin));
     const walkSteps = Math.round(walkBaseM / 0.75).toLocaleString();
     const walkSub = foot
-      ? `${walkTime}<br/><span class="text-slate-400">~${walkSteps} steps · pedestrian path</span>`
+      ? `${walkTime}<br/><span class="text-slate-400">~${walkSteps} steps · ${escapeHtml(
+          footNote || "pedestrian path",
+        )}</span>`
       : `${walkTime}<br/><span class="text-slate-400">Estimated walking time (route unavailable)</span>`;
 
     const carKmStr = ((car ? car.distanceM : d) / 1000).toFixed(2) + " km";
@@ -2230,7 +2542,7 @@
     const twKmStr = ((tw ? tw.distanceM : d) / 1000).toFixed(2) + " km";
     const twTime = tw
       ? formatDurationFromSeconds(tw.durationSec)
-      : formatDurationMinutes(Math.round(d / TRAVEL.cycleMPerMin));
+      : formatDurationMinutes(Math.round(d / TRAVEL.twoWMPerMin));
     const twSub = tw
       ? `${twTime}<br/><span class="text-slate-400">${twNote}</span>`
       : `${twTime}<br/><span class="text-slate-400">Estimated 2W time (route unavailable)</span>`;
@@ -2244,6 +2556,7 @@
           toStation: mb.toStation,
           betweenM: mb.betweenM,
           metroTimeMin: mb.metroTimeMin,
+          interchanges: mb.interchanges,
           firstLeg: null,
           lastLeg: null,
           firstMileM: mb.firstMileM,
@@ -2265,12 +2578,13 @@
       const toN = escapeHtml(metro.toStation.name);
 
       metroKmStr = (metro.totalDistanceM / 1000).toFixed(2) + " km";
+      const waitM = TRAVEL.metroBaseWaitMin + (metro.interchanges || 0) * TRAVEL.metroInterchangePenaltyMin;
       metroSub = `<span class="text-slate-600">${formatDurationFromSeconds(
         metro.totalDurationSec,
       )} total</span>
         <p class="mt-0.5 text-[9px] leading-snug text-slate-500"><span class="font-medium text-slate-700">${fromN}</span> → <span class="font-medium text-slate-700">${toN}</span> · ~${formatDurationMinutes(
         metro.metroTimeMin,
-      )} train · <span class="tabular-nums text-slate-700">${formatDistanceMeters(walkToM)} + ${formatDistanceMeters(lineM)} + ${formatDistanceMeters(
+      )} train + ~${formatDurationMinutes(waitM)} wait${metro.interchanges ? ` + ${metro.interchanges} change` : ""} · <span class="tabular-nums text-slate-700">${formatDistanceMeters(walkToM)} + ${formatDistanceMeters(lineM)} + ${formatDistanceMeters(
         walkFromM,
       )}</span> <span class="text-slate-400">in · line · out</span></p>`;
     }
@@ -2394,6 +2708,20 @@
       }
       state.routingControl = null;
     }
+    if (Array.isArray(state.navAltRouteLayers) && state.navAltRouteLayers.length && state.map) {
+      state.navAltRouteLayers.forEach((layer) => {
+        try {
+          state.map.removeLayer(layer);
+        } catch (_e) {
+          /* ignore */
+        }
+      });
+    }
+    state.navAltRouteLayers = [];
+    state.activeRoute = null;
+    state.navSelectedRouteCoords = null;
+    state.navSelectedRouteDistanceM = null;
+    state.navSelectedRouteDurationSec = null;
   }
 
   function clearMetroNavLayers() {
@@ -2468,6 +2796,8 @@
       state.userMarker.setIcon(createUserExploreMapIcon());
     }
     if (hadWatch) {
+      setLiveNavAnchorLoop(false);
+      setLiveNavMapControlsLock(false);
       state.navUiCompact = false;
       setExplorePanelVisible(true);
       syncNavBannerPlanningChrome();
@@ -2487,8 +2817,9 @@
 
   function onLiveNavPosition(pos) {
     const gpsLoc = [pos.coords.latitude, pos.coords.longitude];
-    const loc = state.cursorMode ? userLatLng().slice() : gpsLoc;
-    if (!state.cursorMode) state.userLocation = loc;
+    const live = isLiveNavigationActive();
+    const loc = live ? gpsLoc : (state.cursorMode ? userLatLng().slice() : gpsLoc);
+    if (live || !state.cursorMode) state.userLocation = loc;
     if (state.userMarker) state.userMarker.setLatLng(loc);
     notifyMonumentModeUserPosition(loc[0], loc[1]);
 
@@ -2499,7 +2830,11 @@
       typeof state.map.setBearing === "function"
     ) {
       let targetBearing = null;
-      if (!state.cursorMode) {
+      const rp = routeProgressEstimate(loc, state.navSelectedRouteCoords);
+      if (rp) {
+        targetBearing = routeForwardBearing(loc, state.navSelectedRouteCoords, rp, 140);
+      }
+      if (targetBearing == null && !state.cursorMode) {
         const hd = pos.coords.heading;
         if (
           hd != null &&
@@ -2516,8 +2851,8 @@
             targetBearing = bearingDegrees(p[0], p[1], loc[0], loc[1]);
           }
         }
-        state.navPrevGpsForBearing = [loc[0], loc[1]];
       }
+      state.navPrevGpsForBearing = [loc[0], loc[1]];
       if (targetBearing != null) {
         const prev = state.navSmoothedBearing != null ? state.navSmoothedBearing : targetBearing;
         state.navSmoothedBearing = lerpAngleDegrees(prev, targetBearing, 0.2);
@@ -2530,20 +2865,65 @@
     }
 
     if (state.map && state.navUiCompact && state.liveNavWatchId != null) {
+      const zTarget = liveNavigationTargetZoom();
+      try {
+        state.map.setView(loc, zTarget, { animate: false });
+      } catch (_e) {
+        /* ignore */
+      }
       lockUserIconToScreenAnchor(state.map, loc, TRAVEL.navUserScreenYFrac);
     }
 
     const dest = state.activePlace;
     const row = el("nav-live-row");
     if (row && dest && state.liveNavWatchId != null) {
-      const m = haversineDistanceMeters(loc[0], loc[1], dest.lat, dest.lng);
-      row.textContent = `Live GPS · ~${(m / 1000).toFixed(2)} km to destination (straight line)`;
+      const directM = haversineDistanceMeters(loc[0], loc[1], dest.lat, dest.lng);
+      const progress = routeProgressEstimate(loc, state.navSelectedRouteCoords);
+      if (progress && isFinite(progress.remainingM)) {
+        let etaMin = null;
+        if (
+          isFinite(state.navSelectedRouteDistanceM) &&
+          state.navSelectedRouteDistanceM > 1 &&
+          isFinite(state.navSelectedRouteDurationSec) &&
+          state.navSelectedRouteDurationSec > 1
+        ) {
+          etaMin =
+            (state.navSelectedRouteDurationSec * (progress.remainingM / state.navSelectedRouteDistanceM)) / 60;
+        } else {
+          const paceMPerMin =
+            state.navRouteMode === "walk"
+              ? TRAVEL.walkMPerMin
+              : state.navRouteMode === "car"
+                ? TRAVEL.driveMPerMinCard
+                : TRAVEL.cycleMPerMin;
+          etaMin = progress.remainingM / paceMPerMin;
+        }
+        row.textContent = `Live GPS · ~${(progress.remainingM / 1000).toFixed(2)} km remaining · ETA ~${formatDurationMinutes(
+          Math.max(1, Math.round(etaMin))
+        )}`;
+      } else {
+        row.textContent = `Live GPS · ~${(directM / 1000).toFixed(2)} km to destination (straight line)`;
+      }
       row.classList.remove("hidden");
-      if (m <= TRAVEL.navArrivalRadiusM && state.navArrivalHandledPlaceSlug !== dest.slug) {
+
+      if (
+        progress &&
+        progress.distanceToRouteM > TRAVEL.navOffRouteThresholdM &&
+        Date.now() - state.navLastAutoRerouteMs > TRAVEL.navAutoRerouteCooldownMs &&
+        !isTourOverlayOpen()
+      ) {
+        state.navLastAutoRerouteMs = Date.now();
+        showToast("You moved off route — rerouting…");
+        beginNavRouting(state.navRouteMode);
+        return;
+      }
+
+      if (directM <= TRAVEL.navArrivalRadiusM && state.navArrivalHandledPlaceSlug !== dest.slug) {
         state.navArrivalHandledPlaceSlug = dest.slug;
         triggerArrival(dest);
       }
     }
+    updateLiveTurnByTurn(loc);
   }
 
   function startLiveNavigation() {
@@ -2552,7 +2932,11 @@
       return;
     }
     if (state.liveNavWatchId != null) return;
+    // Live navigation must follow real GPS, not cursor-simulated location.
+    if (state.cursorMode) setCursorLocationMode(false, { toast: false });
     resetMapNorthUp();
+    // Force an immediate, fresh GPS snap before continuous tracking starts.
+    requestCurrentLocation(true, true);
     state.liveNavWatchId = navigator.geolocation.watchPosition(
       onLiveNavPosition,
       (err) => {
@@ -2585,19 +2969,20 @@
         }
       }
       state.navPreLiveZoom = state.map.getZoom();
-      const z = TRAVEL.liveNavZoom;
-      if (state.navPreLiveZoom < z) {
+      const z = liveNavigationTargetZoom();
+      // Always snap live navigation to the current user position + live-nav zoom.
+      try {
+        state.map.flyTo(userLatLng(), z, { duration: 0.65 });
+      } catch (_e) {
         try {
-          state.map.flyTo(userLatLng(), z, { duration: 0.65 });
-        } catch (_e) {
-          try {
-            state.map.setView(userLatLng(), z);
-          } catch (_e2) {
-            /* ignore */
-          }
+          state.map.setView(userLatLng(), z);
+        } catch (_e2) {
+          /* ignore */
         }
       }
       setMapLiveNavTilt(true);
+      setLiveNavMapControlsLock(true);
+      setLiveNavAnchorLoop(true);
       lockUserIconToScreenAnchor(state.map, userLatLng(), TRAVEL.navUserScreenYFrac);
       scheduleLiveNavIconAnchorAfterMove();
     }
@@ -2643,6 +3028,34 @@
       cur.textContent = list[0];
       next.textContent = list.length > 1 ? `Then: ${list[1]}` : "";
     }
+    strip.classList.remove("hidden");
+  }
+
+  function updateLiveTurnByTurn(loc) {
+    if (!state.navUiCompact) return;
+    const steps = state.navStepPoints;
+    const strip = el("nav-direction-strip");
+    const cur = el("nav-current-step");
+    const next = el("nav-next-step");
+    if (!strip || !cur || !next) return;
+    if (!Array.isArray(steps) || !steps.length) {
+      applyNavDirectionsPhrases(state.navLastDirectionPhrases || []);
+      return;
+    }
+
+    while (state.navCurrentStepIndex < steps.length) {
+      const target = steps[state.navCurrentStepIndex];
+      const d = haversineDistanceMeters(loc[0], loc[1], target[0], target[1]);
+      if (d <= 35) state.navCurrentStepIndex += 1;
+      else break;
+    }
+
+    const idx = Math.min(state.navCurrentStepIndex, steps.length - 1);
+    const phrases = state.navLastDirectionPhrases || [];
+    const currentText = phrases[idx] || "Continue on the highlighted route";
+    const nextText = phrases[idx + 1] ? `Then: ${phrases[idx + 1]}` : "";
+    cur.textContent = currentText;
+    next.textContent = nextText;
     strip.classList.remove("hidden");
   }
 
@@ -2707,6 +3120,7 @@
   }
 
   async function drawMetroNavRoute(from, dest, statsEl) {
+    const reqSeq = ++metroRouteReqSeq;
     const mb = getMetroEstimateSummary(from[0], from[1], dest.lat, dest.lng);
     if (!mb) {
       showToast("Metro path not available — try walk or road modes.");
@@ -2723,6 +3137,7 @@
 
     const first = await resolveMetroAccessLeg(from[0], from[1], latF, lngF, state.metroFirstLegMode);
     const last = await resolveMetroAccessLeg(latT, lngT, dest.lat, dest.lng, state.metroLastLegMode);
+    if (reqSeq !== metroRouteReqSeq) return;
 
     const mid = [
       [latF, lngF],
@@ -2735,24 +3150,26 @@
     g.addLayer(L.polyline(mid, { color: "#a855f7", weight: 4, opacity: 0.9, dashArray: "10 8" }));
     g.addLayer(L.polyline(last.coords, { color: "#0d9488", weight: 5, opacity: 0.92 }));
     const flat = first.coords.concat(mid).concat(last.coords);
+    state.navSelectedRouteCoords = flat.slice();
+    state.navSelectedRouteDistanceM = first.distanceM + mb.betweenM + last.distanceM;
+    state.navSelectedRouteDurationSec = first.durationSec + (mb.metroTimeMin + mb.waitMin) * 60 + last.durationSec;
     state.map.fitBounds(L.latLngBounds(flat), { padding: [48, 48] });
 
     const d1 = (first.distanceM / 1000).toFixed(2);
     const d2 = (last.distanceM / 1000).toFixed(2);
     const t1 = formatDurationFromSeconds(first.durationSec);
     const t2 = formatDurationFromSeconds(last.durationSec);
+    const firstModeText = renderMetroLegModeText(state.metroFirstLegMode, first);
+    const lastModeText = renderMetroLegModeText(state.metroLastLegMode, last);
     const fromN = escapeHtml(mb.fromStation.name);
     const toN = escapeHtml(mb.toStation.name);
     const trainEst = formatDurationMinutes(mb.metroTimeMin);
+    const waitEst = formatDurationMinutes(mb.waitMin);
     const totalTripMin =
-      Math.round(first.durationSec / 60) + mb.metroTimeMin + Math.round(last.durationSec / 60);
+      Math.round(first.durationSec / 60) + mb.metroTimeMin + mb.waitMin + Math.round(last.durationSec / 60);
 
     if (statsEl) {
-      statsEl.innerHTML = `<span class="block">To <b>${fromN}</b>: ~${d1} km · ${t1} <span class="text-slate-400">(${metroLegStatsPhrase(
-        first,
-      )})</span></span><span class="block mt-1">From <b>${toN}</b>: ~${d2} km · ${t2} <span class="text-slate-400">(${metroLegStatsPhrase(
-        last,
-      )})</span></span><span class="block mt-1 text-[11px] text-slate-500">Train ~${trainEst} · between stations ${formatDistanceMeters(
+      statsEl.innerHTML = `<span class="block">To <b>${fromN}</b>: ~${d1} km · ${t1} <span class="text-slate-400">(${firstModeText})</span></span><span class="block mt-1">From <b>${toN}</b>: ~${d2} km · ${t2} <span class="text-slate-400">(${lastModeText})</span></span><span class="block mt-1 text-[11px] text-slate-500">Train ~${trainEst} + wait ~${waitEst}${mb.interchanges ? ` + ${mb.interchanges} change` : ""} · between stations ${formatDistanceMeters(
         mb.betweenM,
       )} · ~${formatDurationMinutes(totalTripMin)} total (incl. train est.)</span>`;
     }
@@ -2760,6 +3177,8 @@
       `Go to ${mb.fromStation.name} to board the metro`,
       `Ride toward ${mb.toStation.name}, then continue to ${dest.name}`,
     ];
+    state.navStepPoints = null;
+    state.navCurrentStepIndex = 0;
     if (state.navUiCompact) applyNavDirectionsPhrases(state.navLastDirectionPhrases);
     if (!state.navChatAnnounced) {
       state.navChatAnnounced = true;
@@ -2778,84 +3197,131 @@
     const statsEl = el("nav-stats");
     const profile = osrmOpts.profile;
     const lineColor = osrmOpts.lineColor;
-    let statsLabel = osrmOpts.statsLabel;
+    const statsLabel = osrmOpts.statsLabel;
     const twFallback = Boolean(osrmOpts.twFallback);
 
     clearRoutingMachine();
-    state.routingControl = L.Routing.control({
-      waypoints: [L.latLng(from[0], from[1]), L.latLng(dest.lat, dest.lng)],
-      routeWhileDragging: false,
-      showAlternatives: false,
-      fitSelectedRoutes: true,
-      addWaypoints: false,
-      draggableWaypoints: false,
-      collapsible: true,
-      collapsed: true,
-      createMarker: function (i, wp) {
-        if (i === 0) return null;
-        return L.marker(wp.latLng);
-      },
-      lineOptions: {
-        styles: [{ color: lineColor, opacity: 0.9, weight: 6 }],
-      },
-      router: L.Routing.osrmv1({
-        serviceUrl: "https://router.project-osrm.org/route/v1",
+    const reqSeq = ++navRouteReqSeq;
+    if (statsEl) statsEl.textContent = "Fetching shortest route + alternatives…";
+
+    void (async () => {
+      const alternatives = await fetchOsrmRouteAlternatives(
+        from[0],
+        from[1],
+        dest.lat,
+        dest.lng,
         profile,
-      }),
-    }).addTo(state.map);
+        mode
+      );
+      if (reqSeq !== navRouteReqSeq) return;
 
-    state.routingControl.on("routesfound", async function (e) {
-      const route = e.routes[0];
-      if (!route || !route.summary) return;
-      const distKm = (route.summary.totalDistance / 1000).toFixed(2);
-      let timeMin = Math.round(route.summary.totalTime / 60);
-      let suffix = statsLabel;
-      if (twFallback) {
-        timeMin = Math.round(route.summary.totalDistance / (42 / 3.6) / 60);
-        suffix = "two-wheeler (road path, ~42 km/h)";
+      if (!alternatives || !alternatives.length) {
+        if (mode === "2w" && profile === "bike") {
+          mountOsrmRoutingControl(from, dest, mode, {
+            profile: "driving",
+            lineColor: "#f97316",
+            statsLabel: "driving",
+            twFallback: true,
+          });
+          return;
+        }
+        showToast("Could not compute route. Try another mode or check your location.");
+        addChatMessage(`No route found for <b>${dest.name}</b> with this profile.`, false);
+        endJourney();
+        return;
       }
-      if (statsEl) statsEl.textContent = `~${distKm} km · ~${formatDurationMinutes(timeMin)} (OSRM ${suffix})`;
 
-      let phrases = [];
-      if (route.instructions && route.instructions.length) {
-        phrases = route.instructions.map((i) => String(i.text || "").trim()).filter(Boolean);
-      }
-      if (phrases.length < 2) {
-        const osrmProf =
-          profile === "foot" || profile === "walking"
-            ? "foot"
-            : profile === "bike" || profile === "cycling"
-              ? "bike"
-              : "driving";
-        const more = await fetchOsrmStepPhrases(from[1], from[0], dest.lng, dest.lat, osrmProf);
-        if (more.length) phrases = more;
-      }
-      state.navLastDirectionPhrases = phrases.length ? phrases : null;
-      if (state.navUiCompact) applyNavDirectionsPhrases(phrases);
+      const drawSelected = async (idx, fitBounds) => {
+        if (reqSeq !== navRouteReqSeq) return;
+        const i = Math.max(0, Math.min(alternatives.length - 1, Number(idx) || 0));
+        const route = alternatives[i];
+        if (!route) return;
+        if (!state.navAltRouteLayers.length) {
+          state.navAltRouteLayers = alternatives.map((alt, routeIdx) => {
+            const layer = L.polyline(alt.coords, {
+              color: routeIdx === 0 ? lineColor : "#94a3b8",
+              opacity: routeIdx === 0 ? 0.92 : 0.55,
+              weight: routeIdx === 0 ? 6 : 4,
+              lineCap: "round",
+            }).addTo(state.map);
+            layer.on("click", () => {
+              void drawSelected(routeIdx, false);
+            });
+            return layer;
+          });
+        }
+        state.navAltRouteLayers.forEach((layer, routeIdx) => {
+          const selected = routeIdx === i;
+          try {
+            layer.setStyle({
+              color: selected ? lineColor : "#94a3b8",
+              opacity: selected ? 0.92 : 0.55,
+              weight: selected ? 6 : 4,
+            });
+            if (selected && layer.bringToFront) layer.bringToFront();
+          } catch (_e) {
+            /* ignore */
+          }
+        });
+        state.activeRoute = state.navAltRouteLayers[i] || null;
+        state.navSelectedRouteCoords = route.coords.slice();
+        state.navSelectedRouteDistanceM = route.distanceM;
+        const timeMin = estimatedDurationMinutesForMode(route.distanceM, mode, route.durationSec, twFallback);
+        state.navSelectedRouteDurationSec = timeMin * 60;
+        if (fitBounds && state.activeRoute) {
+          try {
+            state.map.fitBounds(state.activeRoute.getBounds(), { padding: [48, 48] });
+          } catch (_e) {
+            /* ignore */
+          }
+        }
 
+        const distKm = (route.distanceM / 1000).toFixed(2);
+        let suffix = statsLabel;
+        if (twFallback) {
+          suffix = "two-wheeler estimate on road route";
+        }
+
+        if (statsEl) {
+          const sourceLabel =
+            mode === "car"
+              ? `OSRM ${suffix}`
+              : mode === "walk"
+                ? "walking ETA estimate"
+                : "two-wheeler ETA estimate";
+          statsEl.innerHTML = `<span class="block">~${distKm} km · ~${formatDurationMinutes(
+            timeMin
+          )} <span class="text-slate-500">(${sourceLabel})</span></span>
+            <span class="mt-1 block text-[11px] text-slate-500">Tap another route line on the map to switch.</span>`;
+        }
+
+        let phrases = route.phrases || [];
+        if (phrases.length < 2) {
+          const osrmProf =
+            profile === "foot" || profile === "walking"
+              ? "foot"
+              : profile === "bike" || profile === "cycling"
+                ? "bike"
+                : "driving";
+          const more = await fetchOsrmStepPhrases(from[1], from[0], dest.lng, dest.lat, osrmProf);
+          if (more.length) phrases = more;
+        }
+        state.navLastDirectionPhrases = phrases.length ? phrases : null;
+        state.navStepPoints =
+          Array.isArray(route.stepPoints) && route.stepPoints.length ? route.stepPoints.slice() : null;
+        state.navCurrentStepIndex = 0;
+        if (state.navUiCompact) applyNavDirectionsPhrases(phrases);
+      };
+
+      await drawSelected(0, true);
       if (!state.navChatAnnounced) {
         state.navChatAnnounced = true;
         addChatMessage(
-          `Route to <b>${dest.name}</b>: about <b>${distKm} km</b>, <b>~${formatDurationMinutes(timeMin)}</b>. Follow the line on the map.`,
+          `Route to <b>${dest.name}</b>: shortest option selected, with <b>${alternatives.length}</b> clickable route choices.`,
           false
         );
       }
-    });
-
-    state.routingControl.on("routingerror", function () {
-      if (mode === "2w" && profile === "bike") {
-        mountOsrmRoutingControl(from, dest, mode, {
-          profile: "driving",
-          lineColor: "#f97316",
-          statsLabel: "driving",
-          twFallback: true,
-        });
-        return;
-      }
-      showToast("Could not compute route. Try another mode or check your location.");
-      addChatMessage(`No route found for <b>${dest.name}</b> with this profile.`, false);
-      endJourney();
-    });
+    })();
   }
 
   /** @param {"walk"|"2w"|"car"|"metro"} mode */
@@ -2865,6 +3331,7 @@
     const from = userLatLng();
     state.navLastDirectionPhrases = null;
     state.navArrivalHandledPlaceSlug = null;
+    state.navLastAutoRerouteMs = 0;
     state.navRouteMode = mode;
     syncNavModeButtons();
     syncNavBannerPlanningChrome();
@@ -2891,18 +3358,8 @@
       return;
     }
 
-    if (typeof L === "undefined" || !L.Routing || !L.Routing.control) {
-      state.activeRoute = L.polyline([from, [dest.lat, dest.lng]], {
-        color: "#f97316",
-        weight: 4,
-        dashArray: "8, 8",
-        lineCap: "round",
-      }).addTo(state.map);
-      state.map.fitBounds(state.activeRoute.getBounds(), { padding: [50, 50] });
-      if (statsEl) statsEl.textContent = "Straight-line preview (routing script unavailable)";
-      state.navLastDirectionPhrases = ["Follow the dashed line toward your destination.", ""];
-      if (state.navUiCompact) applyNavDirectionsPhrases(state.navLastDirectionPhrases);
-      setTimeout(() => triggerArrival(dest), 3800);
+    if (typeof L === "undefined") {
+      if (statsEl) statsEl.textContent = "Map engine unavailable.";
       return;
     }
 
@@ -3241,15 +3698,15 @@
     window.map = state.map;
   }
 
-  function requestCurrentLocation(shouldAnimate = true) {
+  function requestCurrentLocation(shouldAnimate = true, forceGps = false) {
     if (!("geolocation" in navigator)) {
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const gpsLoc = [pos.coords.latitude, pos.coords.longitude];
-        const loc = state.cursorMode ? userLatLng().slice() : gpsLoc;
-        if (!state.cursorMode) state.userLocation = loc;
+        const loc = forceGps ? gpsLoc : (state.cursorMode ? userLatLng().slice() : gpsLoc);
+        if (forceGps || !state.cursorMode) state.userLocation = loc;
         if (state.userMarker) state.userMarker.setLatLng(loc);
         notifyMonumentModeUserPosition(loc[0], loc[1]);
         if (state.map) {
@@ -3268,7 +3725,7 @@
       () => {
         // Silent fallback to configured default location.
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: forceGps ? 14000 : 10000, maximumAge: forceGps ? 0 : 30000 }
     );
   }
 
@@ -3499,6 +3956,7 @@
 
   function centerMap() {
     if (!state.map) return;
+    requestCurrentLocation(true, true);
     const loc = userLatLng();
     const live = isLiveNavigationActive();
     if (!live && isTourOverlayOpen()) {
@@ -3870,6 +4328,18 @@
     }, 280);
   }
 
+  function openGoogleMapsForActivePlace() {
+    const place = state.activePlace;
+    if (!place) return;
+    const dest = `${place.lat},${place.lng}`;
+    const hasOrigin = Array.isArray(state.userLocation) && state.userLocation.length === 2;
+    const origin = hasOrigin ? `${state.userLocation[0]},${state.userLocation[1]}` : "";
+    const url = hasOrigin
+      ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&travelmode=driving`
+      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function startJourney() {
     if (!state.activePlace || !state.map) return;
     el("place-panel").classList.add("translate-y-[150%]");
@@ -3908,6 +4378,8 @@
     if (nb) nb.classList.add("-translate-y-[150%]");
     state.navUiCompact = false;
     state.navLastDirectionPhrases = null;
+    state.navStepPoints = null;
+    state.navCurrentStepIndex = 0;
     state.navArrivalHandledPlaceSlug = null;
     state.monumentRoutingTargetId = null;
     state.monumentLastRouteFrom = null;
@@ -4774,6 +5246,7 @@
   window.sendMsg = sendMsg;
   window.openDetails = openDetails;
   window.closeDetails = closeDetails;
+  window.openGoogleMapsForActivePlace = openGoogleMapsForActivePlace;
   window.modalHeroGalleryStep = modalHeroGalleryStep;
   window.startJourney = startJourney;
   window.startJourneyFromModal = startJourneyFromModal;

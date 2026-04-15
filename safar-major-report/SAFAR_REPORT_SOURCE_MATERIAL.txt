@@ -1,0 +1,467 @@
+================================================================================
+SAFAR — COMPLETE SOURCE MATERIAL FOR MAJOR PROJECT REPORT
+================================================================================
+This file is a factual inventory of the Safar project as implemented in the
+repository. Use it to draft Introduction, Literature context, Requirements,
+Design, Implementation, Testing, Results, and Conclusion sections. Replace
+institute-specific placeholders where your report needs names, dates, and
+roll numbers.
+
+Last updated from codebase structure (monument-app + root landing + assets).
+
+--------------------------------------------------------------------------------
+1. PROJECT IDENTITY AND ONE-LINE SUMMARY
+--------------------------------------------------------------------------------
+
+Name: Safar (branding: heritage / monument exploration and navigation).
+
+One-line summary:
+  Full-stack web platform combining a marketing and exploration landing
+  experience (HTML, Tailwind, Leaflet, rich UI scripts) with a React + Mapbox
+  "Monument Navigator" client and a Node.js / Express / MongoDB API providing
+  authentication, monument graphs, QR verification, and A* navigation endpoints.
+
+Primary demo monument (seeded): India Gate precinct (slug: india-gate) with
+  geofence, graph nodes/edges, pathways, and QR checkpoint metadata.
+
+--------------------------------------------------------------------------------
+2. PROBLEM STATEMENT AND MOTIVATION (FOR REPORT NARRATIVE)
+--------------------------------------------------------------------------------
+
+Problems addressed (narrative — align with your institute's wording):
+  - Tourists often rely on generic map apps that do not encode official
+    checkpoint tours, QR validation, or curator-authored graph navigation
+    inside a monument complex.
+  - Heritage projects need a maintainable split between public marketing
+    pages and a richer authenticated app without forcing native installs.
+  - Static hosting (college servers, GitHub Pages style setups) breaks classic
+    BrowserRouter paths; hash-based SPA routing avoids server rewrites.
+  - Password-only flows are heavy for mobile-first users; OTP and OAuth
+    reduce friction while JWT keeps API stateless.
+
+What Safar demonstrates:
+  - End-to-end architecture: static shell + embedded SPA bundle + REST API +
+    MongoDB persistence.
+  - Geofenced "monument mode" concept: transition from world map to internal
+    map experience when user location lies inside a circular geofence.
+  - QR codes as first-class entities linked to graph nodes and verification API.
+  - Graph pathfinding (Haversine edge weights, A*) implemented server-side.
+
+--------------------------------------------------------------------------------
+3. STAKEHOLDERS (ADJUST FOR YOUR REPORT)
+--------------------------------------------------------------------------------
+
+  - Visitors / tourists: discovery, maps, optional sign-in, on-site QR flows.
+  - Curators / administrators: monument JSON-like documents in MongoDB;
+    admin HTTP API exists (JWT required; production should add role checks).
+  - Developers: clear separation of client/server, env examples, seed script.
+  - Academic evaluators: reproducible npm scripts, documented ports, LaTeX
+    report pack under Major-Project-Report/ if included in submission.
+
+--------------------------------------------------------------------------------
+4. HIGH-LEVEL SYSTEM ARCHITECTURE
+--------------------------------------------------------------------------------
+
+Four cooperating layers:
+
+  A) STATIC LANDING + "COMBINED" SHELL (repository root)
+     - index.html: main marketing / map / modals / settings / QR overlay shell.
+     - /assets/css/*   — stylesheets (e.g. app.css, styles.css).
+     - /assets/js/*    — travelr-combined.js (main behaviour), monument-internal.js,
+                        safar-react-loader.js (injects React bundle by hash route).
+     - /assets/images/* — markers, monument auth photos, place image folders.
+     - /assets/videos/* — e.g. India Gate MP4 used in modals / checkpoints.
+     - /assets/data/*  — e.g. delhi-metro-data.csv for metro UI in shell.
+     - /pages/*.html   — auxiliary pages (3D views, FIMS demo, full-app shell).
+
+  B) REACT CLIENT (monument-app/client)
+     - Vite + React 18 + Tailwind.
+     - HashRouter (react-router-dom) for static hosting compatibility.
+     - Mapbox GL via react-map-gl for internal monument map.
+     - Auth context wrapping app; token in localStorage.
+     - Production build output: monument-app/client/dist/ with stable names
+       monument-app.js, monument-app.css (and chunked mapbox bundle).
+
+  C) REST API (monument-app/server)
+     - Express app on PORT (default 5001).
+     - MongoDB via Mongoose.
+     - Routes: /api/auth, /api/monuments, /api/qr, /api/admin.
+     - Serves static repo root when index.html exists at ../../.. relative to
+       server/src/index.js ("combined" single-port deployment).
+
+  D) DATA + SEEDING
+     - indiaGateMonument export in server/src/seed/indiaGateData.js.
+     - npm run seed (package.json in server) upserts sample monument document.
+
+--------------------------------------------------------------------------------
+5. REPOSITORY LAYOUT (TOP LEVEL)
+--------------------------------------------------------------------------------
+
+Safar/
+  index.html                 — Primary landing + map shell entry.
+  package.json               — Root orchestration: combined dev, install:all,
+                               build:client, dev:client.
+  assets/                    — Organized static assets (see section 4A).
+  pages/                     — Extra HTML pages (moved from root for clarity).
+  monument-app/
+    client/                  — Vite React SPA.
+    server/                  — Express API + seed + models.
+  Major-Project-Report/      — LaTeX major project report skeleton (optional).
+  archive/, demos/           — Archived scratch HTML and UI gallery demos
+                               (not part of runtime product).
+
+--------------------------------------------------------------------------------
+6. RUNTIME AND BUILD COMMANDS (DOCUMENTATION FOR REPORT)
+--------------------------------------------------------------------------------
+
+Root (Safar/package.json):
+  npm run install:all   — npm install in server + client.
+  npm run combined      — alias of npm run dev in server (API + static site).
+  npm run dev           — same as combined.
+  npm run build:client  — production Vite build → monument-app/client/dist/
+
+Server (monument-app/server/package.json):
+  npm run dev           — node --watch src/index.js
+  npm start             — node src/index.js
+  npm run seed          — node src/seed/runSeed.js
+
+Client (monument-app/client/package.json):
+  npm run dev           — Vite dev server (default port 5173) with /api proxy
+                          to http://127.0.0.1:5001
+  npm run build         — Vite production build
+  npm run preview       — preview production build
+
+Environment:
+  Server: copy monument-app/server/.env.example → .env
+    Typical vars: PORT, MONGODB_URI, JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN
+  Client: monument-app/client/.env.example
+    VITE_MAPBOX_ACCESS_TOKEN — required for Mapbox map tiles.
+    VITE_GOOGLE_CLIENT_ID — for Google Identity Services button flow.
+    VITE_API_BASE_URL — optional; when unset, fetch uses same origin (works with
+      Vite proxy in dev or combined server in production).
+
+--------------------------------------------------------------------------------
+7. BACKEND — EXPRESS APPLICATION DETAIL
+--------------------------------------------------------------------------------
+
+Entry: monument-app/server/src/index.js
+
+Middleware / features:
+  - cors with CORS_ORIGIN (default "*") and credentials true.
+  - express.json limit 10mb.
+  - morgan("dev") HTTP logging.
+  - API routes mounted under /api/*
+  - If ../../.. from server/src resolves to repo root AND index.html exists:
+      express.static(safarRepoRoot) — combined hosting of landing + assets.
+  - JSON 404 for unknown /api/* ; plain 404 for other missing static paths.
+  - Centralized 500 JSON error handler.
+
+Health check:
+  GET /api/health → { ok: true, service: "monument-app-api" }
+
+--------------------------------------------------------------------------------
+8. BACKEND — AUTHENTICATION AND USER MODEL
+--------------------------------------------------------------------------------
+
+Routes file: monument-app/server/src/routes/authRoutes.js
+
+Endpoints:
+  POST /api/auth/register
+    Body validated: email, password (min 8), optional displayName.
+    Creates user with bcrypt password hash; returns JWT + user summary.
+
+  POST /api/auth/login
+    Email + password; returns JWT + user summary.
+
+  GET /api/auth/me
+    Requires Authorization: Bearer <JWT>.
+    Returns current user (password hash stripped).
+
+  POST /api/auth/otp/request
+    channel: "email" | "phone"
+    purpose: "login" | "register"
+    email OR phone depending on channel.
+    Generates 6-digit OTP, stores in-memory Map with TTL (5 minutes in code).
+    NOTE: OTP delivery is not wired to SMS/email provider in code — suitable
+    for dev/demo; production report should mention integrating Twilio/SendGrid.
+
+  POST /api/auth/otp/verify
+    channel, purpose, otp (4–8 chars), optional displayName,
+    email or phone as appropriate.
+    Creates user on first-time register path; issues JWT.
+
+  POST /api/auth/google
+    Body: { credential } — Google ID token string.
+    Verified via google-auth-library OAuth2Client; user upserted by email;
+    JWT issued.
+
+Controller: monument-app/server/src/controllers/authController.js
+  - OTP_TTL_MS = 5 * 60 * 1000
+  - otpStore: JavaScript Map (ephemeral — lost on server restart; report caveat).
+
+JWT helper: monument-app/server/src/utils/jwt.js (signing user id).
+
+Auth middleware: monument-app/server/src/middleware/auth.js
+  - requireAuth — attaches user to req.
+  - optionalAuth — attaches user if token present.
+
+User schema highlights (monument-app/server/src/models/User.js):
+  - email: unique sparse optional string (lowercase).
+  - phone: unique sparse optional string.
+  - passwordHash: optional string (OTP/Google users may have empty hash).
+  - displayName string.
+  - visitedMonuments: string[] (monument slugs entered in Monument Mode).
+  - scannedQrPoints: string[] composite keys "slug:qrId".
+  - stats: { totalScans, monumentsVisited } numbers.
+  - timestamps: true (createdAt, updatedAt).
+
+--------------------------------------------------------------------------------
+9. BACKEND — MONUMENT MODEL AND CONTENT
+--------------------------------------------------------------------------------
+
+File: monument-app/server/src/models/Monument.js
+
+Monument document fields (conceptual ER for report):
+  - name (string), slug (unique indexed string), description.
+  - geofence: { lat, lng, radiusMeters } — circular entry region.
+  - bounds: { north, south, east, west } — Mapbox camera fitting.
+  - mapStyleUrl: optional Mapbox style URL override.
+  - graphNodes[]: { id, name, lat, lng } — navigation vertices.
+  - graphEdges[]: { from, to, weightMeters? } — undirected logical edges; if
+    weight omitted, server uses Haversine distance between endpoint nodes.
+  - pathways[]: { id, name, coordinates: [[lng,lat], ...] } — GeoJSON-style
+    polyline data for client map layers.
+  - qrPoints[]: { qrId, nodeId, title, shortLabel, description, images[],
+                  audioUrl, videoUrl, order } — QR metadata tied to graph node.
+  - isPublished boolean (default true).
+  - timestamps.
+
+Public monument routes: monument-app/server/src/routes/monumentRoutes.js
+  GET  /api/monuments
+       Lists published monuments (controller filters isPublished).
+
+  GET  /api/monuments/:slug/navigation?from=<nodeId>&to=<nodeId>
+       MUST be registered before /:slug to avoid "navigation" interpreted as slug.
+       Returns A* path result from navigationController.
+
+  GET  /api/monuments/:slug
+       Full monument payload for client rendering.
+
+Navigation / pathfinding:
+  File: monument-app/server/src/utils/pathfinding.js
+    - haversineMeters(a,b)
+    - buildGraph(nodes, edges) → adjacency with computed weights
+    - aStar(adj, byId, startId, goalId) → node id array or null
+
+Controller: monument-app/server/src/controllers/navigationController.js
+  (Uses pathfinding utilities against monument graph from DB.)
+
+--------------------------------------------------------------------------------
+10. BACKEND — QR AND VISITS
+--------------------------------------------------------------------------------
+
+Routes: monument-app/server/src/routes/qrRoutes.js
+  POST /api/qr/verify  (optionalAuth)
+  POST /api/qr/visit   (optionalAuth)
+
+Controllers: monument-app/server/src/controllers/qrController.js
+  - verifyQr: validates qrId belongs to monument slug, can tie to user scans.
+  - recordMonumentVisit: records visit event / counters (see implementation for
+    exact persistence rules when writing report detail).
+
+--------------------------------------------------------------------------------
+11. BACKEND — ADMIN API
+--------------------------------------------------------------------------------
+
+Routes: monument-app/server/src/routes/adminRoutes.js
+  ALL routes use requireAuth middleware.
+  NOTE in code comment: production should add admin role on User and enforce.
+
+  GET    /api/admin/monuments
+  POST   /api/admin/monuments
+  PATCH  /api/admin/monuments/:slug
+  DELETE /api/admin/monuments/:slug
+
+Controller: monument-app/server/src/controllers/adminController.js
+
+--------------------------------------------------------------------------------
+12. FRONTEND — REACT APPLICATION STRUCTURE
+--------------------------------------------------------------------------------
+
+Entry: monument-app/client/src/main.jsx
+  - ReactDOM.createRoot(#root)
+  - StrictMode
+  - HashRouter
+  - AuthProvider wraps App
+
+Routes: monument-app/client/src/App.jsx
+  Path "/"        → HomePage (Mapbox map, geofence, monument mode, QR UI).
+  Path "/login"   → LoginPage (exported from LoginPage.jsx).
+  Path "/signup"  → SignupPage.
+  Path "/profile" → ProfilePage.
+  Path "/admin"   → AdminPage.
+
+Layout behaviour:
+  - When pathname is /login or /signup, outer div uses class "contents" so the
+    auth UI can present as modal overlay; other routes use min-h-screen surface.
+
+API wrapper: monument-app/client/src/api/client.js
+  - Reads VITE_API_BASE_URL or "" for same-origin.
+  - Attaches Bearer token from localStorage when present.
+  - Parses express-validator error arrays into thrown Error messages.
+
+Auth state: monument-app/client/src/context/AuthContext.jsx
+  - On mount: refresh() calls GET /api/auth/me if token exists.
+  - Exposes: user, loading, login, register, requestOtp, verifyOtp,
+             googleAuth, logout, refresh.
+
+HomePage (monument-app/client/src/pages/HomePage.jsx) — verified concepts:
+  - DEFAULT_SLUG = "india-gate"
+  - Fetches monument via api.getMonument(DEFAULT_SLUG)
+  - State: monument, loadError, monumentMode, promptDismissed,
+           destinationNodeId, routeData, scanOpen, qrContent, arrivalLog
+  - Hooks: useMergedLocation, useFakeLocation (debug / simulation),
+           inGeofence from lib/geo.js
+  - Components: MonumentModePrompt, InternalMapView, FloatingScanButton,
+                 QRScannerModal, FakeLocationDebugPanel
+  - Map style constant EXT_MAP_STYLE mapbox://styles/mapbox/streets-v12
+
+Auth UI: monument-app/client/src/pages/LoginPage.jsx (not fully re-listed here)
+  - OTP flow: channel selection, identifier, auto-request OTP on valid input,
+    verify, resend cooldown, Google GIS integration when VITE_GOOGLE_CLIENT_ID set.
+  - Monument auth photos: src/data/monumentAuthPhotos.js uses stable random pick
+    via sessionStorage; image URLs under /assets/images/monuments/...
+
+Other pages (for report file list):
+  - ProfilePage.jsx, AdminPage.jsx — inspect for exact UI claims before writing
+    detailed screen descriptions.
+
+--------------------------------------------------------------------------------
+13. STATIC LANDING + REACT LOADER (INTEGRATION POINT)
+--------------------------------------------------------------------------------
+
+File: assets/js/safar-react-loader.js (loaded from index.html)
+
+Behaviour summary:
+  - Detects hash routes starting with "#/"
+  - If hash is #/login or #/signup → shows React root as modal layer
+    (CSS class safar-react-modal on #root) while keeping #home-overlay visible
+    blurred underneath.
+  - Other client hashes → full React surface (safar-react-full), hides overlay.
+  - Injects link to monument-app/client/dist/assets/monument-app.css and
+    module script monument-app.js once.
+
+Implication for report:
+  - Single index.html can host marketing site and lazy-load SPA without leaving
+    the domain — important for static hosting narratives.
+
+--------------------------------------------------------------------------------
+14. SECURITY AND LIMITATIONS (HONEST FOR "RESULTS / DISCUSSION")
+--------------------------------------------------------------------------------
+
+Strengths:
+  - Passwords hashed with bcrypt (12 rounds) when password register used.
+  - JWT for stateless authorization.
+  - express-validator on auth routes.
+  - Google token verification server-side.
+
+Limitations / caveats to mention academically:
+  - OTP store is in-memory Map — not distributed-safe; lost on restart; no
+    real SMS/email integration in repository.
+  - Admin routes JWT-protected but not role-restricted in code comment sense.
+  - CORS default "*" — tighten for production deployments.
+  - Mapbox token and Google client ID are client-exposed (expected) — must use
+    URL/key restrictions in cloud consoles for production.
+  - Combined static server requires MongoDB up before listen — failure to connect
+    prevents serving even static marketing pages unless startup order changed.
+
+--------------------------------------------------------------------------------
+15. TESTING SUGGESTIONS YOU CAN CLAIM OR PERFORM
+--------------------------------------------------------------------------------
+
+API manual tests (Postman / Thunder Client):
+  - GET /api/health
+  - POST /api/auth/otp/request + /otp/verify happy path
+  - GET /api/monuments and GET /api/monuments/india-gate
+  - GET /api/monuments/india-gate/navigation?from=...&to=...
+  - POST /api/qr/verify with valid/invalid qrId
+
+UI manual tests:
+  - Load landing at combined port or static server; verify /assets paths.
+  - Navigate to #/ and #/profile after auth; verify token persistence.
+  - Toggle monument mode inside geofence simulation if debug panel used.
+
+Automated tests:
+  - Not extensively present as of this documentation pass — report can list
+    this as future work unless you add Jest/supertest later.
+
+--------------------------------------------------------------------------------
+16. DATA FILES AND MEDIA (FOR "INPUT DATA / ASSETS" SECTION)
+--------------------------------------------------------------------------------
+
+  - assets/data/delhi-metro-data.csv — referenced by legacy app.js for metro UI.
+  - assets/images/markers/*.png|webp — map marker icons for Delhi monuments in
+    travelr-combined / app.js contexts.
+  - assets/images/monuments/* — auth background rotation set.
+  - assets/images/places/<folder>/... — per-landmark imagery for landing cards.
+  - assets/videos/India gate.mp4 — used in monument shell / checkpoint UX.
+
+--------------------------------------------------------------------------------
+17. THIRD-PARTY SERVICES AND CDN DEPENDENCIES (LANDING)
+--------------------------------------------------------------------------------
+
+index.html typically loads (verify in your frozen revision):
+  - Tailwind CDN, Iconify, Google Fonts
+  - Leaflet + plugins + Leaflet Routing Machine
+  - Google gsi/client for GIS when auth pages used
+
+These are external runtime dependencies — report should note offline limitation.
+
+--------------------------------------------------------------------------------
+18. SUGGESTED REPORT FIGURES / TABLES (YOU GENERATE SCREENSHOTS)
+--------------------------------------------------------------------------------
+
+  - System architecture diagram: Landing ↔ Loader ↔ React ↔ Express ↔ Mongo.
+  - ER diagram: User + Monument collections with embedded subdocuments.
+  - Sequence diagram: OTP request → verify → JWT issuance.
+  - Screenshot: HomePage Mapbox with geofence + internal map transition.
+  - Screenshot: QR scanner modal + verified state.
+  - Table: API endpoint summary (copy from sections 7–11).
+  - Table: Tech stack vs role (presentation / application / data).
+
+--------------------------------------------------------------------------------
+19. GLOSSARY (FOR REPORT APPENDIX)
+--------------------------------------------------------------------------------
+
+  - SPA: Single Page Application (React client).
+  - JWT: JSON Web Token for authenticated API calls.
+  - OTP: One-Time Password (demo storage in RAM in this codebase).
+  - GIS: Google Identity Services (browser OAuth credential flow).
+  - Geofence: Circular region around monument center; entry triggers UX.
+  - A*: Heuristic graph shortest path algorithm used server-side.
+  - Haversine: Great-circle distance formula for lat/lng edge weights.
+  - Slug: URL-safe monument identifier (e.g. india-gate).
+  - HashRouter: React Router mode using location.hash for paths.
+  - Vite: Frontend build tool and dev server.
+  - Mongoose: MongoDB object modeling for Node.js.
+  - Express: Minimal Node web framework for REST APIs.
+
+--------------------------------------------------------------------------------
+20. ONE-PARAGRAPH ABSTRACT DRAFT (EDIT WITH YOUR NAMES / INSTITUTE)
+--------------------------------------------------------------------------------
+
+Safar is a full-stack heritage navigation platform that couples a rich static
+landing and map experience with a React and Mapbox-based monument navigator and
+a Node.js REST API backed by MongoDB. The system models each monument as a
+geospatial graph with QR-tagged points of interest, exposes A* routing between
+nodes for visitor guidance, and supports multiple authentication mechanisms
+including email or phone OTP, Google sign-in, and classic password accounts
+secured with JSON Web Tokens. A seed dataset for the India Gate precinct
+demonstrates end-to-end behaviour from geofenced entry to QR verification flows,
+while project tooling supports both split hosting and a combined deployment
+pattern where the API process also serves the static site for simplified
+demonstrations.
+
+================================================================================
+END OF SOURCE MATERIAL FILE
+================================================================================

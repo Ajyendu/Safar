@@ -148,7 +148,7 @@
 
   <!-- Map-only UI: hidden on landing/home; shown after startFromHome() -->
   <div id="map-chrome" class="hidden">
-  <div id="nav-banner" class="pointer-events-auto absolute left-1/2 top-6 z-[110] flex w-[92%] max-w-lg -translate-x-1/2 -translate-y-[150%] flex-col gap-3 rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl transition-all duration-500 md:w-auto md:min-w-[420px]">
+  <div id="nav-banner" class="pointer-events-auto absolute left-1/2 top-6 z-[110] flex w-[92%] max-w-lg -translate-x-1/2 -translate-y-[150%] flex-col gap-3 rounded-3xl bg-white/75 p-4 shadow-xl ring-1 ring-white/40 backdrop-blur-2xl transition-all duration-500 md:w-auto md:min-w-[420px]">
     <div class="flex items-center justify-between gap-2">
       <div class="flex min-w-0 flex-1 items-center gap-3">
         <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#38bdf8]/10 text-[#38bdf8]">
@@ -427,6 +427,9 @@
           </div>
         </div>
         <div class="shrink-0 bg-white px-5 pb-5 pt-2">
+          <button type="button" onclick="openGoogleMapsForActivePlace()" class="mb-3 w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            Open in Google Maps
+          </button>
           <button type="button" onclick="openDetails()" class="w-full rounded-2xl bg-slate-900 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800">
             Full story · gallery · 3D
           </button>
