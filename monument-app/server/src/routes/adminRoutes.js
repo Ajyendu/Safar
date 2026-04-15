@@ -1,17 +1,21 @@
 import { Router } from "express";
+import { adminLogin } from "../controllers/adminAuthController.js";
 import {
   createMonument,
   deleteMonument,
+  getAdminStats,
   listAllMonuments,
   updateMonument,
 } from "../controllers/adminController.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAdminAuth } from "../middleware/adminAuth.js";
 
 const router = Router();
 
-/** In production, add role: admin on User and check here */
-router.use(requireAuth);
+router.post("/auth/login", adminLogin);
 
+router.use(requireAdminAuth);
+
+router.get("/stats", getAdminStats);
 router.get("/monuments", listAllMonuments);
 router.post("/monuments", createMonument);
 router.patch("/monuments/:slug", updateMonument);

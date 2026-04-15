@@ -22,7 +22,12 @@ function deg2rad(d) {
  * Build undirected adjacency map from edges; weight uses haversine unless weightMeters set on edge.
  */
 export function buildGraph(nodes, edges) {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const byId = new Map(
+    (nodes || []).map((n) => {
+      const id = String(n.id);
+      return [id, { ...n, id }];
+    })
+  );
   const adj = new Map();
 
   function addEdge(u, v, w) {
@@ -32,9 +37,11 @@ export function buildGraph(nodes, edges) {
     adj.get(v).push({ to: u, w });
   }
 
-  for (const e of edges) {
-    const A = byId.get(e.from);
-    const B = byId.get(e.to);
+  for (const e of edges || []) {
+    const from = String(e.from);
+    const to = String(e.to);
+    const A = byId.get(from);
+    const B = byId.get(to);
     if (!A || !B) continue;
     const w =
       typeof e.weightMeters === "number"
@@ -43,7 +50,7 @@ export function buildGraph(nodes, edges) {
             { lat: A.lat, lng: A.lng },
             { lat: B.lat, lng: B.lng }
           );
-    addEdge(e.from, e.to, w);
+    addEdge(from, to, w);
   }
 
   return { adj, byId };
@@ -53,17 +60,17 @@ export function buildGraph(nodes, edges) {
  * A* pathfinding. Returns array of node ids from start to goal, or null.
  */
 export function aStar(adj, byId, startId, goalId) {
-  if (!byId.has(startId) || !byId.has(goalId)) return null;
-  if (startId === goalId) return [startId];
+  const start = String(startId);
+  const goal = String(goalId);
+  if (!byId.has(start) || !byId.has(goal)) return null;
+  if (start === goal) return [start];
 
-  const goal = byId.get(goalId);
+  const goalNode = byId.get(goal);
 
-  const open = new Set([startId]);
+  const open = new Set([start]);
   const cameFrom = new Map();
-  const gScore = new Map([[startId, 0]]);
-  const fScore = new Map([
-    [startId, haversineMeters(byId.get(startId), goal)],
-  ]);
+  const gScore = new Map([[start, 0]]);
+  const fScore = new Map([[start, haversineMeters(byId.get(start), goalNode)]]);
 
   while (open.size > 0) {
     let current = null;
@@ -76,7 +83,7 @@ export function aStar(adj, byId, startId, goalId) {
       }
     }
     if (current === null) break;
-    if (current === goalId) {
+    if (current === goal) {
       const path = [];
       let c = current;
       while (c !== undefined) {
@@ -93,7 +100,7 @@ export function aStar(adj, byId, startId, goalId) {
       if (tentative < (gScore.get(to) ?? Infinity)) {
         cameFrom.set(to, current);
         gScore.set(to, tentative);
-        const h = haversineMeters(byId.get(to), goal);
+        const h = haversineMeters(byId.get(to), goalNode);
         fScore.set(to, tentative + h);
         open.add(to);
       }

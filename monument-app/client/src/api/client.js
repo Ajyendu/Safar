@@ -63,7 +63,4 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ slug }),
     }),
-
-  /** Admin */
-  adminListMonuments: () => request("/api/admin/monuments"),
 };

@@ -17,16 +17,16 @@ export function inGeofence(lat, lng, centerLat, centerLng, radiusMeters) {
   return haversineMeters(lat, lng, centerLat, centerLng) <= radiusMeters;
 }
 
-/** Find graph node id closest to GPS position */
+/** Find graph node id closest to GPS position (string id for API / pathfinding) */
 export function nearestNodeId(nodes, lat, lng) {
   if (!nodes?.length) return null;
-  let best = nodes[0].id;
+  let best = String(nodes[0].id);
   let bestD = Infinity;
   for (const n of nodes) {
     const d = haversineMeters(lat, lng, n.lat, n.lng);
     if (d < bestD) {
       bestD = d;
-      best = n.id;
+      best = String(n.id);
     }
   }
   return best;

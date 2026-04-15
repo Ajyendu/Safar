@@ -1,8 +1,7 @@
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { HomePage } from "./pages/HomePage.jsx";
-import { LoginPage, SignupPage } from "./pages/LoginPage.jsx";
+import { LoginPage } from "./pages/LoginPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
-import { AdminPage } from "./pages/AdminPage.jsx";
 
 export default function App() {
   const { pathname } = useLocation();
@@ -12,9 +11,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup" element={<Navigate to="/login" replace />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </div>
   );

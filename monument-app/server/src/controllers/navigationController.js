@@ -17,16 +17,30 @@ export async function getNavigationRoute(req, res) {
     return res.status(404).json({ error: "Monument not found" });
   }
 
+  const fromId = String(from).trim();
+  const toId = String(to).trim();
+
   const { adj, byId } = buildGraph(monument.graphNodes, monument.graphEdges);
-  const pathIds = aStar(adj, byId, String(from), String(to));
+  if (!byId.has(fromId) || !byId.has(toId)) {
+    return res.status(400).json({
+      error: "Unknown graph node id (check QR checkpoint nodeId matches graphNodes)",
+    });
+  }
+
+  const pathIds = aStar(adj, byId, fromId, toId);
   if (!pathIds || pathIds.length === 0) {
     return res.status(400).json({ error: "No path found between nodes" });
   }
 
-  const coordinates = pathIds.map((id) => {
+  let coordinates = pathIds.map((id) => {
     const n = byId.get(id);
     return [n.lng, n.lat];
   });
+
+  /** Mapbox / GeoJSON LineString needs ≥ 2 positions; same start/end is a valid 0 m route */
+  if (coordinates.length === 1) {
+    coordinates = [coordinates[0], coordinates[0]];
+  }
 
   let totalMeters = 0;
   for (let i = 1; i < pathIds.length; i++) {

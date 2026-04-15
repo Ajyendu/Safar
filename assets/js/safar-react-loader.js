@@ -1,6 +1,6 @@
 /**
  * Loads the monument React app when the URL hash is a client route (#/…).
- * Login/signup: site stays visible behind a blurred overlay (modal). Map/profile/admin: full app.
+ * Login modal: site stays visible behind blur (#/login, #/signup redirects). Other routes: full app shell.
  */
 (function () {
   var DIST = "monument-app/client/dist/";

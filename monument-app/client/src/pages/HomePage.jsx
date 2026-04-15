@@ -20,7 +20,8 @@ export function HomePage() {
   const [loadError, setLoadError] = useState(null);
   const [monumentMode, setMonumentMode] = useState(false);
   const [promptDismissed, setPromptDismissed] = useState(false);
-  const [destinationNodeId, setDestinationNodeId] = useState(null);
+  /** Selected checkpoint (unique per QR); maps to graph node inside InternalMapView */
+  const [destinationQrId, setDestinationQrId] = useState(null);
   const [routeData, setRouteData] = useState(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [qrContent, setQrContent] = useState(null);
@@ -91,13 +92,19 @@ export function HomePage() {
     );
   }, [position, monument]);
 
-  /** Leaving the geofence resets the prompt and exits Monument Mode */
+  /**
+   * Leaving the geofence resets the entry prompt.
+   * Exit Monument Mode only when using real GPS: simulated walks follow graph edges and can
+   * momentarily sit outside the circular geofence, which was kicking users back to the main map.
+   */
   useEffect(() => {
     if (!inside) {
       setPromptDismissed(false);
-      setMonumentMode(false);
+      if (monumentMode && !fake.enabled) {
+        setMonumentMode(false);
+      }
     }
-  }, [inside]);
+  }, [inside, monumentMode, fake.enabled]);
 
   const showPrompt = inside && !monumentMode && !promptDismissed && monument;
 
@@ -119,22 +126,22 @@ export function HomePage() {
   const handleExitMonumentMode = useCallback(() => {
     setMonumentMode(false);
     setRouteData(null);
-    setDestinationNodeId(null);
+    setDestinationQrId(null);
   }, []);
 
-  const onQrScan = useCallback(
-    async (decodedText) => {
-      const qrId = decodedText.trim();
-      try {
-        const data = await api.verifyQr(qrId, DEFAULT_SLUG);
-        setQrContent(data);
-        setScanOpen(false);
-      } catch (e) {
-        setQrContent({ error: e.message });
+  const onQrScan = useCallback(async (decodedText) => {
+    const qrId = decodedText.trim();
+    try {
+      const data = await api.verifyQr(qrId, DEFAULT_SLUG);
+      setQrContent(data);
+      setScanOpen(false);
+      if (monumentMode && data?.point?.qrId) {
+        setDestinationQrId(data.point.qrId);
       }
-    },
-    []
-  );
+    } catch (e) {
+      setQrContent({ error: e.message });
+    }
+  }, [monumentMode]);
 
   const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -156,13 +163,13 @@ export function HomePage() {
 
   if (monumentMode) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col bg-surface">
+      <div className="fixed inset-0 z-[60] flex min-h-0 flex-col bg-surface">
         <InternalMapView
           monument={monument}
           userPosition={position}
           onExit={handleExitMonumentMode}
-          destinationNodeId={destinationNodeId}
-          onDestinationChange={setDestinationNodeId}
+          destinationQrId={destinationQrId}
+          onDestinationQrIdChange={setDestinationQrId}
           routeData={routeData}
           onRouteUpdate={setRouteData}
           fakeLocationEnabled={fake.enabled}
@@ -187,7 +194,12 @@ export function HomePage() {
           monumentSlug={DEFAULT_SLUG}
         />
         {qrContent && !qrContent.error && (
-          <ContentSheet content={qrContent} onClose={() => setQrContent(null)} />
+          <ContentSheet
+            content={qrContent}
+            onClose={() => setQrContent(null)}
+            monumentMode
+            onNavigateToCheckpoint={setDestinationQrId}
+          />
         )}
         {qrContent?.error && (
           <Toast message={qrContent.error} onClose={() => setQrContent(null)} />
@@ -322,7 +334,12 @@ export function HomePage() {
         monumentSlug={DEFAULT_SLUG}
       />
       {qrContent && !qrContent.error && (
-        <ContentSheet content={qrContent} onClose={() => setQrContent(null)} />
+        <ContentSheet
+          content={qrContent}
+          onClose={() => setQrContent(null)}
+          monumentMode={false}
+          onNavigateToCheckpoint={setDestinationQrId}
+        />
       )}
       {qrContent?.error && (
         <Toast message={qrContent.error} onClose={() => setQrContent(null)} />
@@ -331,7 +348,7 @@ export function HomePage() {
   );
 }
 
-function ContentSheet({ content, onClose }) {
+function ContentSheet({ content, onClose, monumentMode, onNavigateToCheckpoint }) {
   const { point } = content;
 
   const speak = () => {
@@ -357,6 +374,18 @@ function ContentSheet({ content, onClose }) {
           Close
         </button>
       </div>
+      {monumentMode && point?.qrId && onNavigateToCheckpoint && (
+        <button
+          type="button"
+          onClick={() => {
+            onNavigateToCheckpoint(point.qrId);
+            onClose();
+          }}
+          className="mb-3 w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:bg-accent-muted"
+        >
+          Show route to this checkpoint
+        </button>
+      )}
       {!point.audioUrl && (
         <button
           type="button"

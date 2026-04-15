@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map, Layer, Marker, Source } from "react-map-gl";
-import { bearingDegrees, nearestNodeId } from "../lib/geo.js";
+import { bearingDegrees, haversineMeters, nearestNodeId } from "../lib/geo.js";
 import { api } from "../api/client.js";
 
 const MAP_STYLE = "mapbox://styles/mapbox/dark-v11";
@@ -12,8 +12,8 @@ export function InternalMapView({
   monument,
   userPosition,
   onExit,
-  destinationNodeId,
-  onDestinationChange,
+  destinationQrId,
+  onDestinationQrIdChange,
   routeData,
   onRouteUpdate,
   /** When true, map click and draggable user marker set simulated position */
@@ -22,8 +22,22 @@ export function InternalMapView({
   onFakeMarkerDragEnd,
 }) {
   const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const [routeError, setRouteError] = useState(null);
+  const [routeLoading, setRouteLoading] = useState(false);
 
   const bounds = monument.bounds;
+
+  const sortedQrPoints = useMemo(() => {
+    const list = [...(monument.qrPoints || [])];
+    list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return list;
+  }, [monument.qrPoints]);
+
+  const destinationNodeId = useMemo(() => {
+    if (!destinationQrId) return null;
+    const q = sortedQrPoints.find((p) => p.qrId === destinationQrId);
+    return q?.nodeId ?? null;
+  }, [destinationQrId, sortedQrPoints]);
 
   const pathwayGeoJSON = useMemo(() => {
     const features = (monument.pathways || []).map((p) => ({
@@ -87,24 +101,72 @@ export function InternalMapView({
     return nearestNodeId(monument.graphNodes, userPosition.lat, userPosition.lng);
   }, [userPosition, monument.graphNodes]);
 
-  const handleComputeRoute = useCallback(async () => {
-    if (!destinationNodeId || !nearestFrom) return;
-    try {
-      const data = await api.getNavigation(monument.slug, nearestFrom, destinationNodeId);
-      onRouteUpdate(data);
-    } catch (err) {
-      console.error(err);
-      onRouteUpdate(null);
+  /**
+   * GPS jitter can flip the nearest graph node every second; that retriggers routing and
+   * clears the line. Debounce so the API "from" node stabilizes briefly before fetching.
+   */
+  const [routingFromNodeId, setRoutingFromNodeId] = useState(null);
+  useEffect(() => {
+    if (!nearestFrom) {
+      setRoutingFromNodeId(null);
+      return;
     }
-  }, [destinationNodeId, nearestFrom, monument.slug, onRouteUpdate]);
+    const t = window.setTimeout(() => setRoutingFromNodeId(nearestFrom), 400);
+    return () => window.clearTimeout(t);
+  }, [nearestFrom]);
 
-  /** Direction toward next point along computed route (map north-up). */
-  const nextBearing = useMemo(() => {
-    if (!userPosition || !routeData?.coordinates || routeData.coordinates.length < 2) {
-      return null;
+  useEffect(() => {
+    if (!destinationNodeId || !routingFromNodeId) {
+      onRouteUpdate(null);
+      setRouteError(null);
+      setRouteLoading(false);
+      return;
     }
-    const [lng2, lat2] = routeData.coordinates[1];
-    return bearingDegrees(userPosition.lat, userPosition.lng, lat2, lng2);
+
+    let cancelled = false;
+    setRouteLoading(true);
+    setRouteError(null);
+
+    (async () => {
+      try {
+        const data = await api.getNavigation(
+          monument.slug,
+          routingFromNodeId,
+          destinationNodeId
+        );
+        if (!cancelled) {
+          onRouteUpdate(data);
+          setRouteError(null);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          onRouteUpdate(null);
+          setRouteError(err.message || "Could not compute route");
+        }
+      } finally {
+        if (!cancelled) setRouteLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destinationNodeId, routingFromNodeId, monument.slug, onRouteUpdate]);
+
+  /** Direction toward the next meaningful vertex ahead on the route (skip duplicates / same point). */
+  const nextBearing = useMemo(() => {
+    if (!userPosition || !routeData?.coordinates?.length) return null;
+    const coords = routeData.coordinates;
+    const minM = 5;
+    for (let i = 1; i < coords.length; i++) {
+      const [lng, lat] = coords[i];
+      const d = haversineMeters(userPosition.lat, userPosition.lng, lat, lng);
+      if (d >= minM) {
+        return bearingDegrees(userPosition.lat, userPosition.lng, lat, lng);
+      }
+    }
+    return null;
   }, [userPosition, routeData]);
 
   if (!token) {
@@ -126,7 +188,7 @@ export function InternalMapView({
   }
 
   return (
-    <div className="relative flex h-full min-h-[320px] flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between gap-2 bg-gradient-to-b from-black/70 to-transparent px-3 py-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-zinc-500">Monument Mode</p>
@@ -141,7 +203,7 @@ export function InternalMapView({
         </button>
       </header>
 
-      <div className="relative flex-1">
+      <div className="relative min-h-0 flex-1">
         <Map
           mapboxAccessToken={token}
           mapStyle={MAP_STYLE}
@@ -229,37 +291,42 @@ export function InternalMapView({
         )}
       </div>
 
-      <nav className="border-t border-white/10 bg-surface-card p-4">
+      <nav className="shrink-0 border-t border-white/10 bg-surface-card p-4">
         <p className="text-xs text-zinc-500">
-          Nearest graph node (for routing):{" "}
+          Nearest graph node:{" "}
           <span className="font-medium text-zinc-300">{nearestFrom || "—"}</span>
+          {routingFromNodeId && routingFromNodeId !== nearestFrom && (
+            <span className="text-zinc-600"> · routing from {routingFromNodeId}</span>
+          )}
+          {!userPosition && (
+            <span className="mt-1 block text-amber-500/90">
+              Waiting for GPS… enable location or use Fake Location Simulator.
+            </span>
+          )}
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
           <label className="flex-1 text-sm">
             <span className="mb-1 block text-zinc-500">Navigate to checkpoint</span>
             <select
-              value={destinationNodeId || ""}
-              onChange={(e) => onDestinationChange(e.target.value || null)}
+              value={destinationQrId || ""}
+              onChange={(e) => onDestinationQrIdChange(e.target.value || null)}
               className="w-full rounded-xl border border-white/10 bg-surface-elevated px-3 py-2 text-sm text-white"
             >
               <option value="">Select destination…</option>
-              {(monument.qrPoints || []).map((q) => (
-                <option key={q.qrId} value={q.nodeId}>
+              {sortedQrPoints.map((q) => (
+                <option key={q.qrId} value={q.qrId}>
                   {q.title}
                 </option>
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            onClick={handleComputeRoute}
-            disabled={!destinationNodeId || !nearestFrom}
-            className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-40"
-          >
-            Show route
-          </button>
         </div>
-        {routeData?.distanceMeters != null && (
+        <p className="mt-2 text-xs text-zinc-600">
+          Route updates when you change checkpoint or your position snaps to a new nearest node.
+        </p>
+        {routeLoading && <p className="mt-2 text-xs text-sky-400/90">Calculating route…</p>}
+        {routeError && <p className="mt-2 text-xs text-red-400">{routeError}</p>}
+        {routeData?.distanceMeters != null && !routeError && (
           <p className="mt-2 text-xs text-emerald-400/90">
             Route ≈ {routeData.distanceMeters} m along pathways
           </p>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Safar — Admin</title>
+    <link rel="stylesheet" href="./admin.css" />
+  </head>
+  <body>
+    <div id="view-login" class="panel">
+      <div class="card login-card">
+        <h1>Admin</h1>
+        <p class="muted">Safar dashboard — separate from the public app.</p>
+        <form id="login-form">
+          <label for="admin-id">Admin ID</label>
+          <input id="admin-id" name="adminId" type="text" autocomplete="username" required />
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" name="adminPassword" type="password" autocomplete="current-password" required />
+          <p id="login-error" class="error" hidden></p>
+          <button type="submit" id="login-submit">Sign in</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="view-app" class="panel hidden">
+      <aside class="sidebar">
+        <div class="brand">Safar admin</div>
+        <nav>
+          <button type="button" class="nav-btn active" data-tab="overview">Overview</button>
+          <button type="button" class="nav-btn" data-tab="monuments">Monuments</button>
+        </nav>
+        <button type="button" id="logout-btn" class="logout">Sign out</button>
+      </aside>
+      <main class="main">
+        <section id="tab-overview" class="tab">
+          <h2>Overview</h2>
+          <p class="muted">Counts from the API (authenticated admin session).</p>
+          <div id="stats-grid" class="stats"></div>
+        </section>
+        <section id="tab-monuments" class="tab hidden">
+          <div class="row">
+            <div>
+              <h2>Monuments</h2>
+              <p class="muted">Publish, create shells, or delete. Rich map data is still edited in the database.</p>
+            </div>
+            <button type="button" id="open-create" class="primary">Add monument</button>
+          </div>
+          <input type="search" id="mon-filter" class="search" placeholder="Search name or slug…" />
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Slug</th>
+                  <th>QR</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="mon-tbody"></tbody>
+            </table>
+          </div>
+          <p id="mon-empty" class="muted hidden">No monuments match.</p>
+        </section>
+        <p id="global-error" class="error banner hidden"></p>
+      </main>
+    </div>
+
+    <div id="modal-create" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card">
+        <h2 id="modal-title">New monument</h2>
+        <p class="muted">Minimal record — add graph and QR data in MongoDB or seed scripts.</p>
+        <form id="create-form">
+          <label>Name</label>
+          <input name="name" required />
+          <label>Slug</label>
+          <input name="slug" required />
+          <label>Description</label>
+          <textarea name="description" rows="2"></textarea>
+          <fieldset>
+            <legend>Geofence (WGS84)</legend>
+            <div class="grid-3">
+              <div>
+                <label>Lat</label>
+                <input name="lat" value="28.6129" />
+              </div>
+              <div>
+                <label>Lng</label>
+                <input name="lng" value="77.2295" />
+              </div>
+              <div>
+                <label>Radius m</label>
+                <input name="radiusMeters" value="180" />
+              </div>
+            </div>
+          </fieldset>
+          <label class="check"><input type="checkbox" name="isPublished" /> Published</label>
+          <p id="create-error" class="error" hidden></p>
+          <div class="modal-actions">
+            <button type="button" id="create-cancel" class="ghost">Cancel</button>
+            <button type="submit" class="primary">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="./admin.js"></script>
+  </body>
+</html>

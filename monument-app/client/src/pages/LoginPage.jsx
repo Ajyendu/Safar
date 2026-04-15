@@ -30,8 +30,7 @@ function PhotoPanel({ photo }) {
   );
 }
 
-function FormPanel({
-  panelMode,
+function LoginFormPanel({
   closeModal,
   channel,
   setChannel,
@@ -46,8 +45,6 @@ function FormPanel({
   loading,
   requestCode,
   verifyCode,
-  switchToRegister,
-  switchToLogin,
   resendCooldown,
   onGoogleSignIn,
 }) {
@@ -65,25 +62,9 @@ function FormPanel({
         </button>
 
         <h1 id="auth-title" className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-          {panelMode === "login" ? "Log in" : "Create an account"}
+          Log in
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {panelMode === "login" ? (
-            <>
-              Don&apos;t have an account?{" "}
-              <button type="button" onClick={switchToRegister} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 transition hover:decoration-slate-900">
-                Create an Account
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button type="button" onClick={switchToLogin} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 transition hover:decoration-slate-900">
-                Log in
-              </button>
-            </>
-          )}
-        </p>
+        <p className="mt-2 text-sm text-slate-600">Sign in with Google or your phone number.</p>
 
         <p className="mt-4 text-sm font-semibold tracking-wide text-slate-500" aria-live="polite">
           Coming soon
@@ -114,9 +95,7 @@ function FormPanel({
                     <div className="w-full border-t border-slate-200" />
                   </div>
                   <div className="relative flex justify-center">
-                    <span className="bg-white px-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-                      or
-                    </span>
+                    <span className="bg-white px-2 text-xs font-medium uppercase tracking-wide text-slate-400">or</span>
                   </div>
                 </div>
 
@@ -142,9 +121,11 @@ function FormPanel({
                 )}
               </div>
               <div>
-                <label htmlFor={`${panelMode}-id`} className="mb-1.5 block text-sm font-medium text-slate-500">{idLabel}</label>
+                <label htmlFor="login-id" className="mb-1.5 block text-sm font-medium text-slate-500">
+                  {idLabel}
+                </label>
                 <input
-                  id={`${panelMode}-id`}
+                  id="login-id"
                   type={channel === "email" ? "email" : "tel"}
                   required
                   className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-slate-900/10 placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10"
@@ -158,9 +139,11 @@ function FormPanel({
 
           {otpSent && (
             <div>
-              <label htmlFor={`${panelMode}-otp`} className="mb-1.5 block text-sm font-medium text-slate-500">OTP Code</label>
+              <label htmlFor="login-otp" className="mb-1.5 block text-sm font-medium text-slate-500">
+                OTP Code
+              </label>
               <input
-                id={`${panelMode}-otp`}
+                id="login-otp"
                 type="text"
                 inputMode="numeric"
                 required
@@ -179,7 +162,7 @@ function FormPanel({
 
           {otpSent && (
             <button type="submit" disabled={loading || !otp.trim()} className="w-full rounded-full bg-slate-900 py-3.5 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60">
-              {loading ? "..." : panelMode === "login" ? "Verify & Log in" : "Verify & Create account"}
+              {loading ? "..." : "Verify & Log in"}
             </button>
           )}
 
@@ -194,18 +177,15 @@ function FormPanel({
             </button>
           )}
         </form>
-
       </div>
     </div>
   );
 }
 
-function AuthForm({ initialMode }) {
+function AuthForm() {
   const { requestOtp, verifyOtp, googleAuth } = useAuth();
-  const ANIM_MS = 420;
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const [photo] = useState(() => getStableAuthMonumentPhoto());
-  const [mode, setMode] = useState(initialMode);
   const [channel, setChannel] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
@@ -216,41 +196,22 @@ function AuthForm({ initialMode }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
-
   const closeModal = () => {
     window.location.hash = "";
-  };
-
-  const switchTo = (nextMode) => {
-    if (nextMode === mode) return;
-    setMode(nextMode);
-    setChannel("");
-    setIdentifier("");
-    setOtpSent(false);
-    setOtp("");
-    setResendCooldown(0);
-    setDevOtp("");
-    setError(null);
-    window.setTimeout(() => {
-      navigate(nextMode === "register" ? "/signup" : "/login", { replace: true });
-    }, ANIM_MS);
   };
 
   const buildPayload = () => {
     const clean = identifier.trim();
     return channel === "email"
-      ? { channel, purpose: mode, email: clean }
-      : { channel, purpose: mode, phone: clean };
+      ? { channel, purpose: "login", email: clean }
+      : { channel, purpose: "login", phone: clean };
   };
 
   const requestCode = async (e) => {
     if (e?.preventDefault) e.preventDefault();
     setError(null);
     if (!channel) {
-      setError("Please choose Gmail or Phone first.");
+      setError("Please choose Google or Phone first.");
       return;
     }
     setLoading(true);
@@ -377,39 +338,19 @@ function AuthForm({ initialMode }) {
     requestCode,
     verifyCode,
     resendCooldown,
-    switchToRegister: () => switchTo("register"),
-    switchToLogin: () => switchTo("login"),
     onGoogleSignIn: handleGoogleSignIn,
   };
 
-  const formLogin = <FormPanel panelMode="login" submit={verifyCode} {...common} />;
-  const formSignup = <FormPanel panelMode="register" submit={verifyCode} {...common} />;
+  const form = <LoginFormPanel {...common} />;
   const photoPanel = <PhotoPanel photo={photo} />;
 
   return (
     <div className="fixed inset-0 z-[10] flex items-center justify-center overflow-y-auto overscroll-contain p-3 sm:p-5">
       <button type="button" className="absolute inset-0 z-0 bg-slate-950/50 backdrop-blur-md" aria-label="Close" onClick={closeModal} />
       <div className="relative z-10 my-auto w-full max-w-4xl overflow-hidden rounded-[1.5rem] bg-white shadow-2xl shadow-black/40 sm:rounded-[2rem] min-h-[500px] md:h-[620px] md:max-h-[82vh] md:min-h-0">
-        <div className="grid grid-cols-1 md:hidden">
-          {mode === "register" ? (
-            <>
-              {formSignup}
-              {photoPanel}
-            </>
-          ) : (
-            <>
-              {photoPanel}
-              {formLogin}
-            </>
-          )}
-        </div>
-
-        <div className="relative hidden h-full md:block">
-          <div className="absolute left-0 top-0 h-full w-1/2">{formSignup}</div>
-          <div className="absolute left-1/2 top-0 h-full w-1/2">{formLogin}</div>
-          <div className={`absolute top-0 z-10 h-full w-1/2 transition-all duration-500 ease-in-out ${mode === "register" ? "left-1/2" : "left-0"}`}>
-            {photoPanel}
-          </div>
+        <div className="grid h-full min-h-[500px] grid-cols-1 md:min-h-0 md:grid-cols-2">
+          <div className="order-2 min-h-0 md:order-1">{form}</div>
+          <div className="order-1 min-h-[180px] md:order-2 md:min-h-0">{photoPanel}</div>
         </div>
       </div>
     </div>
@@ -417,9 +358,5 @@ function AuthForm({ initialMode }) {
 }
 
 export function LoginPage() {
-  return <AuthForm initialMode="login" />;
-}
-
-export function SignupPage() {
-  return <AuthForm initialMode="register" />;
+  return <AuthForm />;
 }

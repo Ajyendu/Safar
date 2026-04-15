@@ -1,4 +1,49 @@
 import { Monument } from "../models/Monument.js";
+import { User } from "../models/User.js";
+
+/**
+ * Aggregate counts for the admin dashboard (authenticated users only).
+ */
+export async function getAdminStats(req, res) {
+  const [monumentCount, publishedCount, userCount, qrAgg, scanAgg] =
+    await Promise.all([
+      Monument.countDocuments(),
+      Monument.countDocuments({ isPublished: true }),
+      User.countDocuments(),
+      Monument.aggregate([
+        {
+          $project: {
+            n: { $size: { $ifNull: ["$qrPoints", []] } },
+          },
+        },
+        { $group: { _id: null, totalQrPoints: { $sum: "$n" } } },
+      ]),
+      User.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRecordedScans: { $sum: { $ifNull: ["$stats.totalScans", 0] } },
+            uniqueMonumentVisits: { $sum: { $ifNull: ["$stats.monumentsVisited", 0] } },
+          },
+        },
+      ]),
+    ]);
+
+  const qrRow = qrAgg[0];
+  const scanRow = scanAgg[0];
+
+  return res.json({
+    stats: {
+      monuments: monumentCount,
+      publishedMonuments: publishedCount,
+      draftMonuments: Math.max(0, monumentCount - publishedCount),
+      users: userCount,
+      totalQrPoints: qrRow?.totalQrPoints ?? 0,
+      totalRecordedScans: scanRow?.totalRecordedScans ?? 0,
+      sumUserMonumentVisits: scanRow?.uniqueMonumentVisits ?? 0,
+    },
+  });
+}
 
 export async function createMonument(req, res) {
   const payload = req.body;
